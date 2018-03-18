@@ -1,5 +1,5 @@
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
@@ -14,7 +14,7 @@ setup(
     keywords = "pipeline,workflow,fie",
     url = "http://www.fie.us",
     py_modules=["fiepipe", "fiepipestateserver"],
-    packages = ["fiepipelib"],
+    packages = find_packages(),
     install_requires=["rpyc","plumbum","paramiko","cryptography","GitPython","cmd2","bcrypt","pycryptodome","pyreadline"],
     entry_points={'console_scripts': [
         'fiepipe = fiepipe:main',
