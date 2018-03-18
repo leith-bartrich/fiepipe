@@ -57,11 +57,18 @@ your system python clean.  Or to test new versions.
 
 INSTALL FOR DEVELOPMENT:
 
-Development installs typically don't originate from pip because you're likely forking the
+Development installs typically don't originate fully from pip because you're likely forking the
 source-code yourself.  Meaning: you probably have to check it out yourself from a specific
 account or repository becasue you're developing.
 
-Once you've checked out the code, you simply run setup.py yourself, using the develop command:
+Once you've checked out the code, you can use pip or the setup.py file.
+
+pip is often better at getting precompiled versions of dependenies from pypi.  A pip
+install for development might be:
+
+pip install -e .
+
+Or, running setup.py yourself might look like:
 
 python setup.py develop
 
