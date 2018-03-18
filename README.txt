@@ -33,7 +33,7 @@ INSTALL:
 For now, there are two recomended ways to install fiepipe directly.  Either
 to just use it, or to develop it while you use it.
 
-Installs are aqcuired via github through pip and use a standard setup.py file.
+Installs are generally aqcuired via github and use a standard setup.py file.
 This should be secure because you are trusting HTTPS (not HTTP) to guarontee that github is
 actually github (and not an impostor or man in the middle).  And in turn you trust github
 to guarontee that I'm me.  And you in turn trust me.
@@ -41,7 +41,7 @@ to guarontee that I'm me.  And you in turn trust me.
 
 INSTALL FOR USE:
 
-To just install it for use, issue a command to pip which tells it to install from github.
+To just install it system wide for use, issue a command to pip which tells it to install from github.
 
 For example, the master branch from my development repository:
 
@@ -49,16 +49,24 @@ pip install git+https://github.com/leith-bartrich/fiepipe.git@master
 
 upgrades can be acquired using pip's -U or --upgrade flag:
 
-pip install -U git+https://github.com/leith-bartrich/fiepipe.git@master
+pip install -U fiepipe
+
+As fiepipe is alpha software, you may want to install it in a python virtual environment instead, to keep
+your system python clean.  Or to test new versions.
 
 
 INSTALL FOR DEVELOPMENT:
 
-Development installs can be acquired similarly by using the -e  or --editable flag.
+Development installs typically don't originate from pip because you're likely forking the
+source-code yourself.  Meaning: you probably have to check it out yourself from a specific
+account or repository becasue you're developing.
 
-pip install -e git+https://github.com/leith-bartrich/fiepipe.git@master
-
-you may need to ocassionally run the setup.py file in develop mode to update the developer install like such:
+Once you've checked out the code, you simply run setup.py yourself, using the develop command:
 
 python setup.py develop
 
+you may need to ocassionally re-run the setup.py file in develop mode if you edit the setup.py file
+in a way that requires it.
+
+Similarly to standard installs, you may find python virtual environments very useful here to keep
+a development version and production version separate from one another.
