@@ -8,8 +8,6 @@ import json
 import fiepipelib.shells.abstract
 import fiepipelib.registeredlegalentity
 import cmd2
-import argparse
-from cmd2 import with_argparser,with_argument_list
 
 class Shell(fiepipelib.shells.abstract.Shell):
 
