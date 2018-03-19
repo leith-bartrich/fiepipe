@@ -49,7 +49,7 @@ class Shell(fiepipelib.shells.abstract.Shell):
         manager = fiepipelib.storage.localvolume.localvolumeregistry(self._localUser)
         manager.DeleteByName(arg)
 
-    complete_create_volume = cmd2.Cmd.path_complete
+    complete_create_volume = cmd2.path_complete
 
     def do_create_volume(self,arg):
         """Creates a named configured volume.
@@ -150,7 +150,7 @@ class Shell(fiepipelib.shells.abstract.Shell):
             return ret
         else:
             #on linux, we default to path completion
-            return self.path_complete(text,line,begidx,endidx)
+            return cmd2.path_complete(text,line,begidx,endidx)
 
     complete_setup_removable = external_volume_paths_complete
 

@@ -8,6 +8,8 @@ import json
 import fiepipelib.shells.abstract
 import fiepipelib.registeredlegalentity
 import cmd2
+import argparse
+from cmd2 import with_argparser,with_argument_list
 
 class Shell(fiepipelib.shells.abstract.Shell):
 
@@ -30,7 +32,8 @@ class Shell(fiepipelib.shells.abstract.Shell):
             assert isinstance(e, fiepipelib.registeredlegalentity.registeredlegalentity)
             print(e.GetFQDN())
 
-    complete_import = cmd2.Cmd.path_complete
+
+    complete_import = cmd2.path_complete
 
     def do_import(self,arg):
         """Import a legal entity from a file
@@ -56,7 +59,7 @@ class Shell(fiepipelib.shells.abstract.Shell):
         registry.Set([entity])
         print("registered.")
 
-    complete_import_all = cmd2.Cmd.path_complete
+    complete_import_all = cmd2.path_complete
 
     def do_import_all(self, arg):
         """Import all legal entities from a directory

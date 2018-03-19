@@ -400,7 +400,7 @@ class Shell(fiepipelib.shells.abstract.Shell):
         """
         do_asset_shell(args)
 
-    complete_create_asset = cmd2.Cmd.path_complete
+    complete_create_asset = cmd2.path_complete
 
     def do_create_asset(self, args):
         """Create a new asset at the given path
