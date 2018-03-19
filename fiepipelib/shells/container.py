@@ -259,10 +259,13 @@ class Shell(fiepipelib.shells.abstract.Shell):
         try:
             configedroot = self._GetRootConfig(id)
         except LookupError:
-            configedroot = fiepipelib.gitstorage.root.RootFromParameters(id,"home",os.path.join(self._entity.GetFQDN(),container.GetShortName(),root.GetName()))
+            configedroot = fiepipelib.gitstorage.workingroot.RootFromParameters(id,"home",os.path.join(self._entity.GetFQDN(),container.GetShortName(),root.GetName()))
+
+        assert isinstance(configedroot, fiepipelib.gitstorage.workingroot.workingroot)
 
         print("Listing all configured local working volumes:")
-        allLocalVolumes = fiepipelib.storage.localvolume.GetAllLocalVolumes(self._localUser)
+        allLocalVolumes = fiepipelib.storage.localvolume.GetAllRegisteredLocalVolumes(self._localUser)
+        allLocalVolumes.append(fiepipelib.storage.localvolume.GetHomeVolume(self._localUser))
         for vol in allLocalVolumes:
             assert isinstance(vol, fiepipelib.storage.localvolume.localvolume)
             if vol.HasAdjective(fiepipelib.storage.localvolume.CommonAdjectives.containerrole.WORKING_VOLUME):
@@ -322,7 +325,8 @@ class Shell(fiepipelib.shells.abstract.Shell):
         try:
             config = self._GetRootConfig(root.GetID())
         except LookupError:
-            print(self.colorize("Could not load a local configuration for root: " + root.GetName() + ".  Maybe try command: configure_root"))
+            print(self.colorize("Could not load a local configuration for root: " + root.GetName() + ".  Maybe try command: configure_root",'red'))
+            return
 
         oldDir = os.curdir
         shell = fiepipelib.shells.gitroot.Shell(root.GetID(), self._GetContainer(), self._GetLocalConfig(), self._localUser, self._entity, self._site)

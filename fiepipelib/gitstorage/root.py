@@ -51,13 +51,13 @@ def RootFromJSONData(data):
     ret._name = data['name']
     return ret
 
-def RootToJSONData(root):
-    assert isinstance (root, root)
+def RootToJSONData(r):
+    assert isinstance (r, root)
     ret = {}
     ret['version'] = 1
-    ret['id'] = root._id
-    ret['description'] = root._description
-    ret['name'] = root._name
+    ret['id'] = r._id
+    ret['description'] = r._description
+    ret['name'] = r._name
     return ret
 
 def RootFromParameters(id, name, description):

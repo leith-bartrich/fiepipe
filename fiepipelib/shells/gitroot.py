@@ -7,6 +7,9 @@ import os
 import os.path
 import pathlib
 import shutil
+import functools
+import fiepipelib.gitstorage.root
+import fiepipelib.gitstorage.workingroot
 
 class Shell(fiepipelib.shells.abstract.Shell):
 
@@ -83,8 +86,8 @@ class Shell(fiepipelib.shells.abstract.Shell):
             if root != None:
                 break
         if root == None:
-            Print("No such root in the loaded container.  You should probably exit this shell.")
-            raise LookupError(nameorid)
+            print("No such root in the loaded container.  You should probably exit this shell.")
+            raise LookupError(self._id)
         assert isinstance(root, fiepipelib.gitstorage.root.root)
         return root
 
@@ -102,8 +105,10 @@ class Shell(fiepipelib.shells.abstract.Shell):
             if configedroot != None:
                 break
         if configedroot == None:
-            Print("No such local root configuartion.  You should probably exit this shell.")
+            print("No such local root configuartion.  You should probably exit this shell.")
             raise LookupError(id)
+        assert isinstance(configedroot, fiepipelib.gitstorage.workingroot.workingroot)
+        
         return configedroot
     
     def _GetLocalRepoPath(self):
@@ -185,6 +190,8 @@ class Shell(fiepipelib.shells.abstract.Shell):
         config = self._GetConfig()
         root = self._GetRoot()
         vol = mapper.GetMountedBackingStorageByName(args)
+
+        assert isinstance(config, fiepipelib.gitstorage.workingroot.workingroot)
 
         print("Creating repository on backing volume: " + vol.GetName() + " " + vol.GetPath())
         backingRep = root.CreateRepositoryOnBackingVolume(vol)
@@ -328,10 +335,10 @@ class Shell(fiepipelib.shells.abstract.Shell):
 
         config = self._GetConfig()
         if not fiepipelib.gitstorage.routines.workingdirectoryroot.IsFullyCheckedOut(config,self._localUser):
-            print(colorize("Root not fully checked out.","red"))
+            print(self.colorize("Root not fully checked out.","red"))
             return
 
-        return do_archive_local(args)
+        return self.do_archive_local(args)
 
 
     def asset_completion(self,text,line,begidx,endidx):
@@ -398,9 +405,9 @@ class Shell(fiepipelib.shells.abstract.Shell):
     def ash(self, args):
         """Alias for asset_shell command
         """
-        do_asset_shell(args)
+        self.do_asset_shell(args)
 
-    complete_create_asset = cmd2.path_complete
+    complete_create_asset = functools.partial(cmd2.path_complete)
 
     def do_create_asset(self, args):
         """Create a new asset at the given path
@@ -425,7 +432,7 @@ class Shell(fiepipelib.shells.abstract.Shell):
 
         if os.path.isabs(args):
             if not args.startswith(rootPath):
-                print(colorize("Absolute path isn't inside root path: " + args,"red"))
+                print(self.colorize("Absolute path isn't inside root path: " + args,"red"))
                 return
             else:
                 args = os.path.relpath(args,rootPath)

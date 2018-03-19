@@ -29,8 +29,8 @@ class Shell(fiepipelib.shells.abstract.Shell):
         assert isinstance(localUser, fiepipelib.localuser.localuser)
         assert isinstance(entity, fiepipelib.registeredlegalentity.registeredlegalentity)
         assert isinstance(site,fiepipelib.abstractsite.abstractsite)
-        assert isinstance(root, fiepipelib.gitstorage.workingdirectoryroot.root)
-        assert isinstance(root, fiepipelib.gitstorage.localworkingdirectoryroot.workingroot)
+        assert isinstance(root, fiepipelib.gitstorage.root.root)
+        assert isinstance(workingroot, fiepipelib.gitstorage.workingroot.workingroot)
         assert isinstance(workingasset, fiepipelib.gitstorage.workingasset.workingasset)
 
         self._localUser = localUser

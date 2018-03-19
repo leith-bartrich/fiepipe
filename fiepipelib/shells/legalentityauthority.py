@@ -7,6 +7,7 @@ import os.path
 import json
 import fiepipelib.shells.abstract
 import cmd2
+import functools
 
 
 class Shell(fiepipelib.shells.abstract.Shell):
@@ -75,7 +76,7 @@ class Shell(fiepipelib.shells.abstract.Shell):
         authority.Set([entity])
 
 
-    complete_export_registered_all = cmd2.path_complete
+    complete_export_registered_all = functools.partial(cmd2.path_complete)
 
     def do_export_registered_all(self,arg):
         """Export all authored entities as registered entities.
@@ -89,7 +90,7 @@ class Shell(fiepipelib.shells.abstract.Shell):
             print ("No dir specified.")
             return
         if not os.path.isabs(arg):
-            print("The given dir is not an absolute path: " + args[1])
+            print("The given dir is not an absolute path: " + arg)
         authority = fiepipelib.authoredlegalentity.localauthority(self._localUser)
         entities = authority.GetAll()
         for e in entities:
@@ -129,7 +130,6 @@ class Shell(fiepipelib.shells.abstract.Shell):
             print("The given dir is not an absolute path: " + args[1])
             return
         authority = fiepipelib.authoredlegalentity.localauthority(self._localUser)
-        registry = fiepipelib.registeredlegalentity.localregistry(self._localUser)
         entities = authority.GetByFQDN(args[0])
         for e in entities:
             entity = e.CreateRegisteredLegalEntity()

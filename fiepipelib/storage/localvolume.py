@@ -125,10 +125,10 @@ def FilterVolumesByAdjectives(volumes, filters):
 
     for volume in volumes:
         assert isinstance(volume, localvolume)
-        filtered = false
+        filtered = False
         for filter in filters:
             if not volume.HasAdjective(filter):
-                filtered = true
+                filtered = True
         if not filtered:
             passed.append(volume)
     return passed
