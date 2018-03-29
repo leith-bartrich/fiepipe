@@ -157,3 +157,8 @@ class Shell(fiepipelib.shells.abstract.Shell):
             assert isinstance(site,fiepipelib.networkedsite.networkedsite)
             registry.SetNetworkedSite(site)
 
+if __name__ == "__main__":
+    p = fiepipelib.localplatform.GetLocalPlatform()
+    u = fiepipelib.localuser.localuser(p)
+    s = Shell(u)
+    s.cmdloop()

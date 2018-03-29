@@ -2,7 +2,8 @@ import json
 import sqlite3
 import fiepipelib.localuser
 import os.path
-
+import abc
+import pathlib
 
 class abstractmanager(object):
     """An abstract class with which to make managers of static data.  Currently backed by sqllite.
@@ -29,11 +30,13 @@ class abstractmanager(object):
         conn.commit()
         conn.close()
 
+    @abc.abstractmethod
     def GetConfigDir(self):
         """Override this: Returns the path to the configuration directory for this manager."""
         raise NotImplementedError()
 
-    def GetManagedTypeName(self):
+    @abc.abstractmethod
+    def GetManagedTypeName(self) -> str:
         """Override this: Returns the name of the type of managed item this manager manages.
         e.g. The FooManager probably returns 'Foo'"""
         raise NotImplementedError()
@@ -57,7 +60,7 @@ class abstractmanager(object):
         assert isinstance(ret, sqlite3.Connection)
         return ret
 
-    def GetColumns(self):
+    def GetColumns(self) -> list:
         """Override this and call super: Returns a list of two element tupples of sqlite names and types
         for the desired searchable columns in the table.  The baseclass makes sure
         there is a 'json' column of type 'text' to hold the item's serialized json form.
@@ -77,7 +80,8 @@ class abstractmanager(object):
         ret.append( ('json','text') )
         return ret
 
-    def GetPrimaryKeyColumns(self):
+    @abc.abstractmethod
+    def GetPrimaryKeyColumns(self) -> list:
         """Returns a list of column names that make up the primary key"""
         raise NotImplementedError()
 
@@ -162,10 +166,12 @@ class abstractmanager(object):
             statement = statement + " AND ".join(clauses) 
         cur.execute(statement,values)
 
+    @abc.abstractmethod
     def ToJSONData(self, item):
         """Override this: Converts the given item into JSON data, which is a dictionary object, and returns it."""
         raise NotImplementedError()
 
+    @abc.abstractmethod
     def FromJSONData(self, data):
         """Override this: Converts the givne JSON data, which is a dictionary, into an item and returns it."""
         raise NotImplementedError()
@@ -241,9 +247,25 @@ class abstractmanager(object):
         """
         self._DeleteRowsByMultipleAND(colNamesAndValues)
 
+    def _dumpTo(self, path):
+        p = pathlib.Path(path)
+        conn = self._GetDBConnection()
+        cur = conn.cursor()
+        assert isinstance(cur, sqlite3.Cursor)
+        statement = ".output " + str(p.absolute())
+        cur.execute(statement)
+        statement = ".dump"
+        cur.execute(statement)
+        cur.close()
+        conn.close()
 
-
-
+    def _readFrom(self, path):
+        p = pathlib.Path(path)
+        conn = self._GetDBConnection()
+        cur = conn.cursor()
+        assert isinstance(cur, sqlite3.Cursor)
+        statement = ".read " + str(p.absolute())
+        cur.execute(statement)
 
 class abstractlocalmanager(abstractmanager):
     """Subclass this.

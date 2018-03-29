@@ -2,6 +2,8 @@ import fiepipelib.localuser
 import fiepipelib.shells.abstract
 import fiepipelib.shells.localsite
 #import fiepipelib.shells.networkedsite
+import fiepipelib.applauncher.genericlauncher
+import sys
 
 
 class Shell(fiepipelib.shells.abstract.Shell):
@@ -80,6 +82,11 @@ class Shell(fiepipelib.shells.abstract.Shell):
         """Alias for set_local_site"""
         self.do_local_site_shell(arg)
 
+    def GetForkArgs(self):
+        return [self._fqdn]
+
+        
+
     #def do_add_networked_site(self,arg):
     #    """Allows the manual addition of a site.
     #    Usage: add_site [fqdn] [sitename] [stateserver]...
@@ -110,3 +117,10 @@ class Shell(fiepipelib.shells.abstract.Shell):
     #    registery.SetNetworkedSite(site)
     #    if isinsatnce(self, fiepipelib.shells.networkedsite.Shell):
     #       self.do_reload(None)
+
+
+if __name__ == "__main__":
+    p = fiepipelib.localplatform.GetLocalPlatform()
+    u = fiepipelib.localuser.localuser(p)
+    s = Shell(sys.argv[1], u)
+    s.cmdloop()

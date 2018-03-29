@@ -2,6 +2,9 @@ import fiepipelib.shells.abstractsite
 import fiepipelib.fiepipeserver.client
 import fiepipelib.localsite
 import fiepipelib.container
+import fiepipelib.registeredlegalentity
+import sys
+import fiepipelib.applauncher.genericlauncher
 
 class Shell(fiepipelib.shells.abstractsite.Shell):
     """A shell for working within the local site of a legal entity on this system."""
@@ -9,6 +12,9 @@ class Shell(fiepipelib.shells.abstractsite.Shell):
     def __init__(self,localUser,entity):
         self._localSite = fiepipelib.localsite.FromParameters(entity.GetFQDN())
         super().__init__(localUser,entity)
+        
+    def GetForkArgs(self):
+        return [self._entity.GetFQDN()]
         
     def getPluginNameV1(self):
         return 'localsite'
@@ -217,3 +223,11 @@ class Shell(fiepipelib.shells.abstractsite.Shell):
             registry.DeleteByShortName(self._entity.GetFQDN(),token)
             registry.DeleteByID(token)
 
+if __name__ == "__main__":
+    p = fiepipelib.localplatform.GetLocalPlatform()
+    u = fiepipelib.localuser.localuser(p)
+    registry = fiepipelib.registeredlegalentity.localregistry(u)
+    entities = registry.GetByFQDN(sys.argv[1])
+    entity = entities[0]
+    s = Shell(u,entity)
+    s.cmdloop()
