@@ -67,6 +67,7 @@ def CreateEmpty(repo, subpath, name):
     tempRepo = fiepipelib.gitstorage.routines.repo.InitWorkingTreeRoot(tempdirpath)
     fiepipelib.gitstorage.routines.ignore.CheckCreateIgnore(tempRepo)
     tempRepo.index.commit("Initial commit.  Added empty .gitignore")
+    fiepipelib.gitstorage.routines.ignore.AddIgnore(tempRepo, ".assetlocal/")
     ret = Add(repo,name,subpath,tempdirpath,None,False)
     tempRepo.close()
     shutil.rmtree(tempdirpath)

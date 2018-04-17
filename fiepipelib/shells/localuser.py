@@ -14,6 +14,12 @@ class Shell(fiepipelib.shells.abstract.Shell):
         assert isinstance(localUser, fiepipelib.localuser.localuser)
         super().__init__()
         self._localUser = localUser
+        
+    def getPluginNameV1(self):
+        return "local_user"
+
+    def GetBreadCrumbsText(self):
+        return self.breadcrumbs_separator.join(["pipe","local_user"])
 
     def do_print_home_dir(self,arg):
         """Prints the homedir of the current local user"""

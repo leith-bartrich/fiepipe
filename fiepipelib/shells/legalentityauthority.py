@@ -76,7 +76,7 @@ class Shell(fiepipelib.shells.abstract.Shell):
         authority.Set([entity])
 
 
-    complete_export_registered_all = functools.partial(cmd2.path_complete)
+    complete_export_registered_all = functools.partial(cmd2.Cmd.path_complete)
 
     def do_export_registered_all(self,arg):
         """Export all authored entities as registered entities.

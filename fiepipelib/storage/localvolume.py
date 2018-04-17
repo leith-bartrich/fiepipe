@@ -264,7 +264,7 @@ class localvolume(object):
     def RemoveAdjective(self, adjective):
         assert isinstance(adjective, str)
         if adjective in self._adjectives:
-           self._adjectives.remove(adjective)
+            self._adjectives.remove(adjective)
     
     def HasAdjective(self, adjective):
         return adjective in self._adjectives

@@ -91,8 +91,8 @@ class localregistry(fiepipelib.abstractmanager.abstractlocalmanager):
     def GetManagedTypeName(self):
         return "container"
 
-    def GetByShortName(self, shortName):
-        return self._Get([("shortname",shortName)])
+    def GetByShortName(self, shortName, fqdn):
+        return self._Get([("shortname",shortName),("fqdn",fqdn)])
 
     def GetByID(self, id):
         return self._Get([("id",id)])

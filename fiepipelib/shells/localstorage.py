@@ -12,7 +12,6 @@ import pathlib
 import functools
 
 class Shell(fiepipelib.shells.abstract.Shell):
-    prompt = 'pipe/local_storage>'
     _localUser = None
 
     def __init__(self, localUser):
@@ -22,8 +21,10 @@ class Shell(fiepipelib.shells.abstract.Shell):
         self._localUser = localUser
 
     def getPluginNameV1(self):
-        return 'localstorage'
+        return 'local_storage'
 
+    def GetBreadCrumbsText(self):
+        return self.breadcrumbs_separator.join(["pipe","local_storage"])
 
     def do_list_mounted_volumes(self,arg):
         volumes = fiepipelib.storage.localvolume.GetAllMountedVolumes(self._localUser)
@@ -50,7 +51,7 @@ class Shell(fiepipelib.shells.abstract.Shell):
         manager = fiepipelib.storage.localvolume.localvolumeregistry(self._localUser)
         manager.DeleteByName(arg)
 
-    complete_create_volume = functools.partial(cmd2.path_complete)
+    complete_create_volume = functools.partial(cmd2.Cmd.path_complete)
 
     def do_create_volume(self,arg):
         """Creates a named configured volume.

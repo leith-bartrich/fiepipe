@@ -37,6 +37,5 @@ class workingasset(object):
 
     def IsCheckedOut(self):
         return self.GetSubmodule().module_exists()
-
-
+        
 

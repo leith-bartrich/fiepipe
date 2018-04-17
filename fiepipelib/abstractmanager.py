@@ -4,6 +4,9 @@ import fiepipelib.localuser
 import os.path
 import abc
 import pathlib
+import git
+
+
 
 class abstractmanager(object):
     """An abstract class with which to make managers of static data.  Currently backed by sqllite.
@@ -59,6 +62,18 @@ class abstractmanager(object):
         ret = sqlite3.connect(self._GetDBFilename())
         assert isinstance(ret, sqlite3.Connection)
         return ret
+    
+    def GetDBConnection(self):
+        """Returns an open sqlite3 connection with the mananger's data as the "main" DB.  Keep in mind, the
+        database is usually
+        locked based on the transaction this connection represents.  So grab it, use it, and dump it quickly
+        to avoid blocking processes.  Or, hold on to it if you really need to.
+        
+        Most manager methods that take a connection argument will open and close one automatically.  If you
+        instead intend to use a connection's transation capabilities, you'll want to get one here
+        and pass it around, using it's commit, rollback methods at appropriate times.
+        """
+        return self._GetDBConnection()
 
     def GetColumns(self) -> list:
         """Override this and call super: Returns a list of two element tupples of sqlite names and types
@@ -85,7 +100,7 @@ class abstractmanager(object):
         """Returns a list of column names that make up the primary key"""
         raise NotImplementedError()
 
-    def _CreateTable(self, cur):
+    def _CreateTable(self, conn:sqlite3.Connection=None):
         """Checks for and automatically creates the neccesaary table.
         """
         statement = "CREATE TABLE IF NOT EXISTS " + self.GetManagedTypeName() + "( "
@@ -101,11 +116,15 @@ class abstractmanager(object):
         primstring = ", ".join(self.GetPrimaryKeyColumns())
 
         statement = statement + colstring + ", PRIMARY KEY (" + primstring + ") )"
-
-        cur.execute( statement )
+        
+        
+        if conn == None:
+            conn = self._GetDBConnection()
+            
+        conn.execute( statement )
         #TODO: add indexes here
 
-    def _CreateUpdateRows(self, data):
+    def _CreateUpdateRows(self, data, conn:sqlite3.Connection=None, commit=True):
         """Uses the REPLACE statement to insert or update a row regardless of if it exsits or not.
         @param data: A list of dictionaries of names and data to insert
         """
@@ -122,19 +141,21 @@ class abstractmanager(object):
                 for k in data[0].keys():
                     valrow.append(row[k])
                 values.append(valrow)
-            statement = statement + ", ".join(names) + ") VALUES (" + " ,".join(qmarks) + ")"
-            conn = self._GetDBConnection()
+                statement = statement + ", ".join(names) + ") VALUES (" + " ,".join(qmarks) + ")"
+            if conn == None:
+                conn = self._GetDBConnection()
             cur = conn.cursor()
             cur.executemany(statement,values)
-            conn.commit()
-            conn.close()
+            if commit:
+                conn.commit()
 
-    def _DeleteRowsByMultipleAND(self, colNamesAndValues = []):
+    def _DeleteRowsByMultipleAND(self, colNamesAndValues = [],conn:sqlite3.Connection=None,commit=True):
         """Runs a delete statement to search for and delete rows matching all passed column and value tupples with AND logic.
         @param colNamesAndValues: A list of tupples.  e.g. [("firstname","John"),("lastname","Doe")]
         """
         statement = "DELETE FROM " + self.GetManagedTypeName()
-        conn = self._GetDBConnection()
+        if conn == None:
+            conn = self._GetDBConnection()
         cur = conn.cursor()
         clauses = []
         values = []
@@ -145,8 +166,8 @@ class abstractmanager(object):
                 values.append(str(i[1]))
             statement = statement + " AND ".join(clauses) 
         cur.execute(statement,values)
-        conn.commit()
-        conn.close()
+        if commit:
+            conn.commit()
 
     def _GetRowsByMultipleAND(self, cur, colNamesAndValues = []):
         """Selects and returns rows based on the given search criteria.
@@ -193,7 +214,7 @@ class abstractmanager(object):
             data.append(row)
         return data
 
-    def _Get(self, colNamesAndValues = []):
+    def _Get(self, colNamesAndValues = [],conn:sqlite3.Connection=None):
         """Gets items that match an AND based column and value filter.
 
         Typically a manager will have a series of more type specific Get methods to call.
@@ -205,7 +226,8 @@ class abstractmanager(object):
         @return: A list of items.  Empty list if none meet the criteria.
 
         """
-        conn = self._GetDBConnection()
+        if conn == None:
+            conn = self._GetDBConnection()
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         self._GetRowsByMultipleAND(cur, colNamesAndValues)
@@ -213,20 +235,19 @@ class abstractmanager(object):
         ret = []
         for row in rows:
             ret.append(self._ItemFromRow(row))
-        conn.close()
         return ret
 
-    def GetAll(self):
-        return self._Get()
+    def GetAll(self,conn:sqlite3.Connection=None):
+        return self._Get(conn=conn)
 
-    def Set(self, items):
+    def Set(self, items, conn:sqlite3.Connection=None, commit=True):
         """Sets (create/update) items.
         @param items: A list of items to set.
         """
         insertData = self._ItemsToInsertData(items)
-        self._CreateUpdateRows(insertData)
+        self._CreateUpdateRows(insertData,conn,commit)
 
-    def _Delete(self, colName, colValue):
+    def _Delete(self, colName, colValue,conn:sqlite3.Connection=None,commit=True):
         """Deletes items by the colName and colValue.
 
         As in: DELETE from TABLE WHERE [colName] = [colValue]
@@ -236,16 +257,16 @@ class abstractmanager(object):
         @param colName: The column name to match for deletion
         @param colValue: The column value to match for deletion
         """
-        self._DeleteRowsByMultipleAND([(colName,colValue)])
+        self._DeleteRowsByMultipleAND([(colName,colValue)],conn,commit)
 
-    def _DeleteByMultipleAND(self, colNamesAndValues = []):
+    def _DeleteByMultipleAND(self, colNamesAndValues = [],conn:sqlite3.Connection=None,commit=True):
         """Deletes items by multiple AND conditions.
 
         Typically a manager will have a series of more type specific Delete methods to call.
 
         @param colNamesAndValus: A list of tupples of names and values to use as conditions.  e.g. [("fqdn","them.com"),("sitename","home")]
         """
-        self._DeleteRowsByMultipleAND(colNamesAndValues)
+        self._DeleteRowsByMultipleAND(colNamesAndValues,conn,commit)
 
     def _dumpTo(self, path):
         p = pathlib.Path(path)
@@ -259,13 +280,15 @@ class abstractmanager(object):
         cur.close()
         conn.close()
 
-    def _readFrom(self, path):
+    def _readFrom(self, path, conn:sqlite3.Connection=None):
         p = pathlib.Path(path)
-        conn = self._GetDBConnection()
+        if conn == None:
+            conn = self._GetDBConnection()
         cur = conn.cursor()
         assert isinstance(cur, sqlite3.Cursor)
         statement = ".read " + str(p.absolute())
         cur.execute(statement)
+        conn.commit()
 
 class abstractlocalmanager(abstractmanager):
     """Subclass this.

@@ -9,7 +9,6 @@ import sys
 class Shell(fiepipelib.shells.abstract.Shell):
     """Shell for working within a legal entity."""
 
-    prompt = "pipe/entity>"
     _localUser = None
     _fqdn = None
 
@@ -29,11 +28,13 @@ class Shell(fiepipelib.shells.abstract.Shell):
 
     def __init__(self, fqdn, localUser):
         assert isinstance(localUser, fiepipelib.localuser.localuser)
-        super().__init__()
         self._localUser = localUser
         self._fqdn = fqdn
-        self.prompt = "pipe/" + fqdn + ">"
+        super().__init__()
         self.do_reload("")
+        
+    def GetBreadCrumbsText(self):
+        return self.breadcrumbs_separator.join(["pipe",self._fqdn])
 
     def do_reload(self, arg):
         """reloads the entity from disk"""
