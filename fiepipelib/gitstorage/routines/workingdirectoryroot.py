@@ -1,12 +1,9 @@
-import git
-import os.path
-import pathlib
-import fiepipelib.gitstorage.localstoragemapper
-import fiepipelib.gitstorage.root
-import fiepipelib.gitstorage.workingroot
+import fiepipelib.gitstorage.data.localstoragemapper
+import fiepipelib.gitstorage.data.git_root
+import fiepipelib.gitstorage.data.local_root_configuration
 import fiepipelib.storage.localvolume
 import fiepipelib.gitstorage.routines.workingdirectoryasset
-import fiepipelib.gitstorage.routines.repo
+import fiepipelib.git.routines.repo
 
 
 def IsFullyCheckedOut(workingRoot, localUser):
@@ -14,7 +11,7 @@ def IsFullyCheckedOut(workingRoot, localUser):
     """
     assert isinstance(workingRoot, fiepipelib.gitstorage.localworkingdirectoryroot.workingroot)
     assert isinstance(localUser, fiepipelib.localuser.localuser)
-    mapper = fiepipelib.gitstorage.localstoragemapper.localstoragemapper(localUser)
+    mapper = fiepipelib.gitstorage.data.localstoragemapper.localstoragemapper(localUser)
 
     for subWorkingAsset in workingRoot.GetWorkingAssets(mapper,False):
         if not fiepipelib.gitstorage.routines.workingdirectoryasset.IsFullyCheckedOut(subWorkingAsset):
@@ -25,10 +22,10 @@ def PushRootToArchive(root, workingRoot, archiveVolume, localUser):
 
     This is not recursive with regard to assets or submodules.
     """
-    assert isinstance(root, fiepipelib.gitstorage.root.root)
-    assert isinstance(workingRoot, fiepipelib.gitstorage.workingroot.workingroot)
+    assert isinstance(root, fiepipelib.gitstorage.data.git_root.GitRoot)
+    assert isinstance(workingRoot, fiepipelib.gitstorage.data.local_root_configuration.workingroot)
     assert isinstance(localUser, fiepipelib.localuser.localuser)
-    mapper = fiepipelib.gitstorage.localstoragemapper.localstoragemapper(localUser)
+    mapper = fiepipelib.gitstorage.data.localstoragemapper.localstoragemapper(localUser)
 
     workingRepo = workingRoot.GetRepo(mapper)
     archiveRepoPath = root.GetPathForArchiveVolume(archiveVolume)
@@ -48,8 +45,8 @@ def PushRootToArchiveRecursive(root, workingRoot, archiveVolume, localUser):
     Skips assets that are not checked out (are not local)
     """
 
-    assert isinstance(root, fiepipelib.gitstorage.root.root)
-    assert isinstance(workingRoot, fiepipelib.gitstorage.workingroot.workingroot)
+    assert isinstance(root, fiepipelib.gitstorage.data.git_root.GitRoot)
+    assert isinstance(workingRoot, fiepipelib.gitstorage.data.local_root_configuration.workingroot)
     assert isinstance(localUser, fiepipelib.localuser.localuser)
 
     PushRootToArchive(root,workingRoot,archiveVolume,localUser)
@@ -57,7 +54,7 @@ def PushRootToArchiveRecursive(root, workingRoot, archiveVolume, localUser):
     for subWorkingAsset in workingRoot.GetWorkingAssets(mapper,False):
         print("Moving into Sub-Asset: " + subWorkingAsset.GetSubmodule().abspath)
         if subWorkingAsset.IsCheckedOut():
-            fiepipelib.gitstorage.routines.workingdirectoryasset.PushToArchiveVolumeRecursive(subWorkingAsset.GetAsset(),archiveVolume,localUser)
+            fiepipelib.gitstorage.routines.workingdirectoryasset.PushToArchiveVolumeRecursive(subWorkingAsset.GetAsset(), archiveVolume, localUser)
         else:
             print("Sub-Asset not checked out.  Skipping.")
 

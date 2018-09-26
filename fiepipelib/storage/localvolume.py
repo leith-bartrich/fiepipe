@@ -1,10 +1,11 @@
-import fiepipelib.abstractmanager
-import fiepipelib.localuser
+import fiepipelib.locallymanagedtypes.data.abstractmanager
+import fiepipelib.localuser.routines.localuser
 import os
 import os.path
-import textwrap
 import pathlib
-
+import typing
+from fiepipelib.localplatform.routines.localplatform import LocalPlatformWindowsRoutines, LocalPlatformUnixRoutines, AbstractLocalPlatformBaseRoutines, get_local_platform_routines
+from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 def FromJSONData(data):
     ret = localvolume()
     ret._name = data['name']
@@ -27,18 +28,97 @@ def FromParameters(name, path, adjectives = []):
     ret._adjectives = adjectives
     return ret
 
-def GetHomeVolume(localUser):
-    assert isinstance(localUser, fiepipelib.localuser.localuser)
-    return FromParameters("home",localUser.GetHomeDir(),[CommonAdjectives.containerrole.WORKING_VOLUME])
+
+class localvolume(object):
+    """Represents a local storage volume as it currently exists on the system.  Unlike traditional low-level computer systems, a volume in this case is just a directory.  It's found via a path.
+    Most modern computer systems have virtualized volumes to this degree via virtual file systems (VFS).
+
+    Technically speaking, we're okay with some network file systems here.  The requirement is that the storage "effectively" be local.  Which means POSIX compliant.  So, a clustered SAN file system mounted
+    on this system might work fine.  A well tested NFS mount might work fine.
+
+    However, keep in mind that many network file-systems that appear to be local file-systems are not actually POSIX compliant.
+    Most often, they don't properly handle file-locks.  So, if a particualr NFS mount lies about file-locks and doesn't actually execute a reliable network based file lock, it's dangerous to configure it
+    as a local volume.
+
+    I (the author) have personally run into enterprise level NFS storage appliances that claimed to properly execute network based lock managment over NFS, and actually did not get it right.  BE VERY CAREFUL ABOUT THIS!
+    """
+
+    _name = None
+    _path = None
+    _adjectives = None
+
+    def GetName(self):
+        """Typically, a volume mapping system will reference the volume by this name. 'home' is reserved for a volume that points to the user's home (~) directory."""
+        return self._name
+
+    def GetPath(self):
+        """The path to the volume.  Essentially, a path to a directory.  This is platform specific, as local volumes don't migrate from machine to machine."""
+        return self._path
+
+    def IsMounted(self):
+        """Checks if the volume is mounted.  We check if the path exists, if it's a directory, and if there isn't an entry in it named 'volume.notmounted'
+
+        In some OSes you might have a removable volume that mounts into an existing subdirectory as a mountpoint.  That can make it difficult
+        to detect if the removable media is not mounted, without knowing quite a bit about the mount table of the system.  If that's the case,
+        try putting an empty text file named 'volume.notmounted' in the empty mount point.  The sytem will find it and return false here.
+
+        In some OSes, you might mount all removable volumes in the same place, making it difficult to differentiate between them.  In this case,
+        we also look for a file named 'volume.name' and check the first line of text for a match to this volume's name.
+
+        We stick to platform independent logic here because it's likley that a removable drive will migrate from system to system.
+        """
+        # must exist
+        if os.path.exists(self.GetPath()):
+            # must be a directory
+            if os.path.isdir(self.GetPath()):
+                # must be no entry named volume.notmounted
+                if not os.path.exists(os.path.join(self.GetPath(), "volume.notmounted")):
+                    # logic for checking a explicitly named volume
+                    if os.path.exists(os.path.join(self.GetPath(), "volume.name")):
+                        # it's explicitly named, we need to make sure it's the right one for this volume.
+                        with open(os.path.join(self.GetPath(), "volume.name")) as f:
+                            lines = f.readlines()
+                        for line in lines:
+                            # skip comments
+                            if line.startswith("#"):
+                                continue
+                            # skip empty
+                            if len(line.strip()) != 0:
+                                # it's not empty or a comment.  it's the name
+                                return line.strip() == self._name
+                    else:
+                        # it's not explicitly named, so we've verified enough.
+                        return True
+        return False
+
+    def GetAdjectives(self):
+        return self._adjectives.copy()
+
+    def AddAdjective(self, adjective):
+        assert isinstance(adjective, str)
+        if adjective not in self._adjectives:
+            self._adjectives.append(adjective)
+
+    def RemoveAdjective(self, adjective):
+        assert isinstance(adjective, str)
+        if adjective in self._adjectives:
+            self._adjectives.remove(adjective)
+
+    def HasAdjective(self, adjective):
+        return adjective in self._adjectives
 
 
-def GetAllRegisteredLocalVolumes(localUser):
+def GetHomeVolume(localUser: LocalUserRoutines):
+    return FromParameters("home", localUser.get_home_dir(), [CommonAdjectives.containerrole.WORKING_VOLUME])
+
+
+def GetAllRegisteredLocalVolumes(localUser: LocalUserRoutines) -> typing.List[localvolume]:
     ret = []
     registry = localvolumeregistry(localUser)
     ret.extend(registry.GetAll())
     return ret
 
-def GetAllMountedVolumes(localUser,removableAdjectives = []):
+def GetAllMountedVolumes(localUser:LocalUserRoutines,removableAdjectives = []):
     all = []
     all.append(GetHomeVolume(localUser))
     all.extend(GetAllRegisteredLocalVolumes(localUser))
@@ -50,7 +130,7 @@ def GetAllMountedVolumes(localUser,removableAdjectives = []):
             ret.append(a)
     return ret
 
-def GetUnregisteredRemovableVolumes(localUser, adjectives = []):
+def GetUnregisteredRemovableVolumes(localUser:LocalUserRoutines, adjectives = []):
     """Does platform specific scanning for unregistered removable volumes and returns them.
 
     The passed adjectives list is neccesary since removable volumes don't inherently have adjectives.
@@ -65,14 +145,12 @@ def GetUnregisteredRemovableVolumes(localUser, adjectives = []):
 
     #useful
     registry = localvolumeregistry(localUser)
-
-    assert isinstance(localUser, fiepipelib.localuser.localuser)
-    platform = localUser.GetPlatform()
+    platform = get_local_platform_routines()
 
     #windows logic for drive letter scanning
-    if isinstance(platform, fiepipelib.localplatform.localplatformwindows):
+    if isinstance(platform, LocalPlatformWindowsRoutines):
         #we walk drive letters for mounted drives
-        driveLetters = platform.getLogicalDriveLetters()
+        driveLetters = platform.get_logical_drive_letters()
         for driveLetter in driveLetters:
 
             #check for a volume.name file
@@ -191,87 +269,9 @@ class CommonAdjectives:
         ARCHIVE_VOLUME = "archive_volume"
 
 
-class localvolume(object):
-    """Represents a local storage volume as it currently exists on the system.  Unlike traditional low-level computer systems, a volume in this case is just a directory.  It's found via a path.
-    Most modern computer systems have virtualized volumes to this degree via virtual file systems (VFS).
-    
-    Technically speaking, we're okay with some network file systems here.  The requirement is that the storage "effectively" be local.  Which means POSIX compliant.  So, a clustered SAN file system mounted
-    on this system might work fine.  A well tested NFS mount might work fine.
-  
-    However, keep in mind that many network file-systems that appear to be local file-systems are not actually POSIX compliant.
-    Most often, they don't properly handle file-locks.  So, if a particualr NFS mount lies about file-locks and doesn't actually execute a reliable network based file lock, it's dangerous to configure it
-    as a local volume.
-
-    I (the author) have personally run into enterprise level NFS storage appliances that claimed to properly execute network based lock managment over NFS, and actually did not get it right.  BE VERY CAREFUL ABOUT THIS!
-    """
-
-    _name = None
-    _path = None
-    _adjectives = None
-
-    def GetName(self):
-        """Typically, a volume mapping system will reference the volume by this name. 'home' is reserved for a volume that points to the user's home (~) directory."""
-        return self._name
-
-    def GetPath(self):
-        """The path to the volume.  Essentially, a path to a directory.  This is platform specific, as local volumes don't migrate from machine to machine."""
-        return self._path
-
-    def IsMounted(self):
-        """Checks if the volume is mounted.  We check if the path exists, if it's a directory, and if there isn't an entry in it named 'volume.notmounted'
-
-        In some OSes you might have a removable volume that mounts into an existing subdirectory as a mountpoint.  That can make it difficult
-        to detect if the removable media is not mounted, without knowing quite a bit about the mount table of the system.  If that's the case,
-        try putting an empty text file named 'volume.notmounted' in the empty mount point.  The sytem will find it and return false here.
-
-        In some OSes, you might mount all removable volumes in the same place, making it difficult to differentiate between them.  In this case,
-        we also look for a file named 'volume.name' and check the first line of text for a match to this volume's name.
-
-        We stick to platform independent logic here because it's likley that a removable drive will migrate from system to system.
-        """
-        #must exist
-        if os.path.exists(self.GetPath()):
-            #must be a directory
-            if os.path.isdir(self.GetPath()):
-                #must be no entry named volume.notmounted
-                if not os.path.exists(os.path.join(self.GetPath(),"volume.notmounted")):
-                    #logic for checking a explicitly named volume
-                    if os.path.exists(os.path.join(self.GetPath(),"volume.name")):
-                        #it's explicitly named, we need to make sure it's the right one for this volume.
-                        with open(os.path.join(self.GetPath(),"volume.name")) as f:
-                            lines = f.readlines()
-                        for line in lines:
-                            #skip comments
-                            if line.startswith("#"):
-                                continue
-                            #skip empty
-                            if len (line.strip()) != 0:
-                                #it's not empty or a comment.  it's the name
-                                return line.strip() == self._name
-                    else:
-                        #it's not explicitly named, so we've verified enough.
-                        return True
-        return False
-
-    def GetAdjectives(self):
-        return self._adjectives.copy()
-
-    def AddAdjective(self, adjective):
-        assert isinstance(adjective, str)
-        if adjective not in self._adjectives:
-            self._adjectives.append(adjective)
-
-    def RemoveAdjective(self, adjective):
-        assert isinstance(adjective, str)
-        if adjective in self._adjectives:
-            self._adjectives.remove(adjective)
-    
-    def HasAdjective(self, adjective):
-        return adjective in self._adjectives
 
 
-
-class localvolumeregistry(fiepipelib.abstractmanager.abstractlocalmanager):
+class localvolumeregistry(fiepipelib.locallymanagedtypes.data.abstractmanager.AbstractUserLocalTypeManager):
 
     def FromJSONData(self, data):
         return FromJSONData(data)

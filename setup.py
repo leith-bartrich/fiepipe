@@ -15,10 +15,17 @@ setup(
     url = "http://www.fie.us",
     py_modules=["fiepipe", "fiepipestateserver"],
     packages = find_packages(),
-    install_requires=["rpyc","plumbum","paramiko","cryptography","GitPython","cmd2","bcrypt","pycryptodome","pyreadline"],
-    entry_points={'console_scripts': [
-        'fiepipe = fiepipe:main',
-        'fiepipestateserver = fiepipestateserver:main',
+    install_requires=["rpyc","plumbum","paramiko","cryptography","GitPython","cmd2","bcrypt","pycryptodome","pyreadline","keyboard"],
+    entry_points={
+        'fiepipe.plugin.shell.gitlabserver.shell.v1' : [
+            'container = fiepipelib.container.shells.gitlabserver:FIEPipeShellPlugin',
+            'registered_entity = fiepipelib.legalentity.registry.shell.gitlabserver:FIEPipeShellPlugin',
+        ],
+        'console_scripts': [
+            'fiepipe = fiepipelib.shells.fiepipe:main',
+            #'fiepipestateserver = fiepipestateserver:main',
+            'fiepipe_gitlab = fiepipelib.gitlabserver.shell.manager:main',
+            'fiepipe_containers = fiepipelib.container.shells.manager:main',
         ],
     },
     long_description=read('README.txt'),

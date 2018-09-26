@@ -2,7 +2,7 @@ import rpyc
 import rpyc.utils
 import rpyc.utils.zerodeploy
 import plumbum.machines.paramiko_machine
-import fiepipelib.localuser
+import fiepipelib.localuser.routines.localuser
 
 class client(object):
     """Local client for the fiepipeserver server"""
@@ -15,7 +15,7 @@ class client(object):
     def __init__(self, hostname, username, localUser, autoAddHosts=False):
         """@param autoAddHosts: If true, automatically adds hosts to the list of trusted hosts if it hasn't seen them before.  If false, it rejects them.
         """
-        assert isinstance(localUser, fiepipelib.localuser.localuser)
+        assert isinstance(localUser, fiepipelib.localuser.routines.localuser.LocalUserRoutines)
         self._localUser = localUser
         self._hostname = hostname
         self._username = username
@@ -30,7 +30,7 @@ class client(object):
     _connections = None
 
     def GetHostsFilePath(self):
-        return os.path.joint(self._localUser.GetPipeConfigurationDir(),"fiepipeclient_known_hosts.txt")
+        return os.path.joint(self._localUser.get_pipe_configuration_dir(), "fiepipeclient_known_hosts.txt")
 
     def RemoveKnownHost(self):
         hosts = plumbum.machines.paramiko_machine.paramiko.HostKeys(self.GetHostsFilePath())

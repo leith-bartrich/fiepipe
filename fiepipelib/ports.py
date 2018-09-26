@@ -1,6 +1,6 @@
 import json
 import os.path
-import fiepipelib.localuser
+import fiepipelib.localuser.routines.localuser
 
 """Module for managing ports for all kinds of services.
 
@@ -32,7 +32,7 @@ def PortFromPath(path):
     return data['port']
 
 def GetPortsDir():
-    configdir = localUser.GetPipeConfigurationDir()
+    configdir = localUser.get_pipe_configuration_dir()
     portsdir = os.path.join(configdir,"ports")
     return portsdir
 
@@ -45,14 +45,14 @@ def GetPortPath(serviceName):
 def GetPortForUserService(localUser,serviceName):
     """Gets the last port logged by this user service when launched.  If the service is running, it's on this port.
     May raise all kinds of exceptions.  In which case, there likey isn't a running service."""
-    assert isinstance(localUser,fiepipelib.localuser.localuser)
+    assert isinstance(localUser, fiepipelib.localuser.routines.localuser.LocalUserRoutines)
     path = GetPortPath(serviceName)
     return PortFromPath(path)
 
 def SetPortForUserService(localUser,serviceName, port):
     """Used to log a port for a user service.  When a service is launched, it should log its port so clients can find it.
     If exceptions are raised, the service probably should fail and log as such."""
-    assert isinstance(localUser,fiepipelib.localuser.localuser)
+    assert isinstance(localUser, fiepipelib.localuser.routines.localuser.LocalUserRoutines)
     path = GetPortPath(serviceName)
     PortToPath(port,path)
 

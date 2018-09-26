@@ -37,12 +37,12 @@ class server(rpyc.Service):
         return ret
 
     def exposed_get_all_registered_containers(self):
-        registry = fiepipelib.container.localregistry(self._localuser)
+        registry = fiepipelib.container.shared.data.container.LocalContainerManager(self._localuser)
         ret = registry.GetAll()
         return ret
 
     def exposed_get_registered_containers_by_fqdn(self, fqdn):
-        registry = fiepipelib.container.localregistry(self._localuser)
+        registry = fiepipelib.container.shared.data.container.LocalContainerManager(self._localuser)
         ret = registry.GetByFQDN(fqdn)
         return ret
 
@@ -51,7 +51,7 @@ class server(rpyc.Service):
         Sets the passed containers.
         @param containers: a list of container objects
         """
-        registry = fiepipelib.container.localregistry(self._localuser)
+        registry = fiepipelib.container.shared.data.container.LocalContainerManager(self._localuser)
         registry.Set(containers)
         return
 

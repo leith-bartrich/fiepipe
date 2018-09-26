@@ -1,7 +1,5 @@
 import git
-import os.path
-import pathlib
-import fiepipelib.gitstorage.localstoragemapper
+import fiepipelib.gitstorage.data.localstoragemapper
 import fiepipelib.gitstorage.workingdirectoryroot
 import fiepipelib.gitstorage.localworkingdirectoryroot
 import fiepipelib.storage.localvolume
@@ -45,7 +43,7 @@ def PushToArchiveVolume(workingAsset, archiveVol, localUser):
     assert isinstance(workingAsset, fiepipelib.gitstorage.workingasset.workingasset)
     assert isinstance(archiveVol, fiepipelib.storage.localvolume.localvolume)
     assert isinstance(localUser,fiepipelib.localuser.localuser)
-    mapper = fiepipelib.gitstorage.localstoragemapper.localstoragemapper(localUser)
+    mapper = fiepipelib.gitstorage.data.localstoragemapper.localstoragemapper(localUser)
     wRepo = workingAsset.GetSubmodule().module()
     assert isinstance(wRepo, git.Repo)
 
@@ -73,7 +71,7 @@ def PushToArchiveVolumeRecursive(workingAsset, archiveVol, localUser, recursive 
     assert isinstance(workingAsset, fiepipelib.gitstorage.workingasset.workingasset)
     assert isinstance(archiveVol, fiepipelib.storage.localvolume.localvolume)
     assert isinstance(localUser,fiepipelib.localuser.localuser)
-    mapper = fiepipelib.gitstorage.localstoragemapper.localstoragemapper(localUser)
+    mapper = fiepipelib.gitstorage.data.localstoragemapper.localstoragemapper(localUser)
 
     asset = workingAsset.GetAsset()
 

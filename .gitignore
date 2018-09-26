@@ -6,3 +6,4 @@
 **/fiepipe.egg-info/**
 .vscode
 *.pyproj
+.idea/**

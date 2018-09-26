@@ -1,6 +1,6 @@
 import rpyc
-import fiepipelib.localplatform
-import fiepipelib.localuser
+import fiepipelib.localplatform.routines.localplatform
+import fiepipelib.localuser.routines.localuser
 import fiepipelib.siteregistry
 import fiepipelib.legalentityregistry
 
@@ -35,7 +35,8 @@ class server(rpyc.Service):
 
     def __init__(self,privatekey,fqdn):
         assert isinstance(privatekey, fiepipelib.privatekey.networkedsiteprivatekey)
-        self._localuser = fiepipelib.localuser.localuser(fiepipelib.localplatform.GetLocalPlatform())
+        self._localuser = fiepipelib.localuser.routines.localuser.LocalUserRoutines(
+            fiepipelib.localplatform.routines.localplatform.get_local_platform_routines())
         self._privatekey = privatekey
         self._fqdn = fqdn
 
