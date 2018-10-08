@@ -5,14 +5,18 @@ import cmd2
 
 import fiepipelib.shells.AbstractShell
 from fiepipelib.container.shells.container_id_var_command import ContainerIDVariableCommand
+from fiepipelib.gitlabserver.routines.gitlabserver import GitLabServerRoutines
+from fiepipelib.gitlabserver.data.gitlab_server import GitLabServerManager
 from fiepipelib.gitstorage.data.localstoragemapper import localstoragemapper
+from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
+from fiepipelib.gitstorage.routines.gitlab_server import GitLabFQDNGitRootRoutines
 from fiepipelib.gitstorage.routines.gitroot import GitRootRoutines
 from fiepipelib.gitstorage.shells.gitasset import Shell as GitAssetShell
+from fiepipelib.gitstorage.shells.ui.log_message_input_ui import LogMessageInputUI
 from fiepipelib.gitstorage.shells.vars.root_id import RootIDVarCommand
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
-
-
+from fiepipelib.gitstorage.shells.gitroot_gitlab_server import Shell as GitLabGitRootShell
 class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
     _container_id_var: ContainerIDVariableCommand = None
     _root_id_var: RootIDVarCommand = None
@@ -47,6 +51,9 @@ class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
         assets_command = AssetsCommand(self)
         self.add_submenu(assets_command, "assets", ['as'])
 
+        gitlab_command = GitLabServerCommand(self)
+        self.add_submenu(gitlab_command,"gitlab",['gl'])
+
     def get_routines(self) -> GitRootRoutines:
         return GitRootRoutines(self._container_id_var.get_value(), self._root_id_var.get_value(),
                                feedback_ui=self.get_feedback_ui(),
@@ -62,15 +69,6 @@ class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
             if (backingVol.GetName().startswith(text)):
                 ret.append(backingVol.GetName())
         return ret
-
-    #
-    # def mounted_archive_completion(self, text, line, begidx, endidx):
-    #     ret = []
-    #     storageMapper = fiepipelib.gitstorage.localstoragemapper.localstoragemapper(self._localUser)
-    #     backingVols = storageMapper.GetMountedBackingStorage()
-    #     for backingVol in backingVols:
-    #         ret.append(backingVol.GetName())
-    #     return ret
 
     def do_init_new(self, args):
         """Initializes a brand new repository for the root with an empty working tree.
@@ -149,267 +147,64 @@ class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
         routines.load()
         self.do_coroutine(routines.delete_worktree_routine())
 
-    # def do_pull_from_archives(self, args):
-    #     """Clones the working tree from any found on currenlty mounted archives.
-    #
-    #     Fails variously if there is a problem.
-    #
-    #     Usage: pull_from_archives
-    #     """
-    #
-    #     # path
-    #     # volRegistry = fiepipelib.storage.localvolume.localvolumeregistry(self._localUser)
-    #     config = self._GetConfig()
-    #     localPath = self._GetLocalRepoPath()
-    #
-    #     # source
-    #     mapper = fiepipelib.gitstorage.localstoragemapper.localstoragemapper(self._localUser)
-    #     root = self._GetRoot()
-    #     vols = root.FindOnMountedArchiveVolumes(mapper)
-    #     if len(vols) == 0:
-    #         print(self.colorize("Root not found on any mounted archive.  Can't clone it to a working tree.", "red"))
-    #         return
-    #     # We grab the first. [shrug]
-    #     backingRep = root.GetRepositoryOnArchiveVolume(vols[0], False)
-    #
-    #     # clone
-    #     print("Cloning to local working tree...")
-    #     backingRep.clone(localPath)
-    #     os.chdir(localPath)
+    def do_commit(self, args):
+        """Commits the changes in the asset tree and the root.
 
-    # complete_pull_split_from_archives = mounted_backing_store_completion
-    #
-    # def do_pull_split_from_archives(self, args):
-    #     """Creates a split wokring tree from the specified backing store.
-    #
-    #     Usage: create_split_worktree [volume]
-    #
-    #     arg volume: The backing store volume to use.
-    #     """
-    #     if args == None:
-    #         print("No volume specified.")
-    #         return
-    #     if args == "":
-    #         print("No volume specified.")
-    #         return
-    #
-    #     # path
-    #     # volRegistry = fiepipelib.storage.localvolume.localvolumeregistry(self._localUser)
-    #     config = self._GetConfig()
-    #     localPath = self._GetLocalRepoPath()
-    #
-    #     # source
-    #     mapper = fiepipelib.gitstorage.localstoragemapper.localstoragemapper(self._localUser)
-    #     root = self._GetRoot()
-    #
-    #     # find archive
-    #     vols = root.FindOnMountedArchiveVolumes(mapper)
-    #     if len(vols) == 0:
-    #         print(self.colorize("Root not found on any mounted archive.  Can't clone it to a working tree.", "red"))
-    #         return
-    #     # We grab the first. [shrug]
-    #     archiveRep = root.GetRepositoryOnArchiveVolume(vols[0], False)
-    #
-    #     # create repo
-    #     backingVol = mapper.GetMountedBackingStorageByName(args)
-    #     backingPath = root.GetPathForBackingVolume(backingVol)
-    #     archiveRep.clone(backingPath)
-    #     backingRepo = root.GetRepositoryOnBackingVolume(backingVol, False)
-    #
-    #     # create worktree
-    #     backingRepo.git.worktree("add", localPath)
-    #     os.chdir(localPath)
+        Usage: commit
+        """
+        log_message_input_ui = LogMessageInputUI(self)
+        log_message = self.do_coroutine(log_message_input_ui.execute("Log message"))
+        routines = self.get_routines()
+        routines.load()
+        self.do_coroutine(routines.commit(log_message))
 
-    # complete_archive_local = mounted_archive_completion
 
-    # def do_archive_local(self, args):
-    #     """Clones the local working tree repository and assets to the given archive.
-    #
-    #     Skips assets that are not checked out.
-    #
-    #     Generally used to populate or update an archive with the current local working set's state and history.
-    #
-    #     WARNING: This is not a comprehensive backup of the full project.
-    #
-    #     Usage: archive_local [name]
-    #
-    #     arg name: The name of the archive to clone to.
-    #     """
-    #     if args == None:
-    #         print("No archive name specified.")
-    #         return
-    #     if args == "":
-    #         print("No archive name specified.")
-    #         return
-    #
-    #     storageMapper = fiepipelib.gitstorage.localstoragemapper.localstoragemapper(self._localUser)
-    #     vol = storageMapper.GetMountedArchivalStorageByName(args)
-    #     config = self._GetConfig()
-    #     root = self._GetRoot()
-    #
-    #     fiepipelib.git.routines.workingdirectoryroot.PushRootToArchiveRecursive(root, config, vol, self._localUser)
+class GitLabServerCommand(fiepipelib.shells.AbstractShell.AbstractShell):
 
-    # complete_archive_full = mounted_archive_completion
+    def get_plugin_names_v1(self) -> typing.List[str]:
+        ret = super(GitLabServerCommand, self).get_plugin_names_v1()
+        ret.append("gitrooot_gitlabserver_command")
+        return ret
 
-    # def do_archive_full(self, args):
-    #     """Archives the working tree and its history to the given archive, including all assets.
-    #
-    #     Errors if all assets are not checked out, hence ensuring a full project backup.
-    #
-    #     WARNING: Currently, it's possible some assets will be skipped if they're not part of the current working tree.  e.g. you deleted them at some point from the project.
-    #
-    #     Usage: archive_full [name]
-    #
-    #     arg name: The name of the archive to clone to.
-    #
-    #     Errors if the root is not fully checked out.
-    #     """
-    #     if args == None:
-    #         print("No archive name specified.")
-    #         return
-    #     if args == "":
-    #         print("No archive name specified.")
-    #         return
-    #
-    #     config = self._GetConfig()
-    #     if not fiepipelib.git.routines.workingdirectoryroot.IsFullyCheckedOut(config, self._localUser):
-    #         print(self.colorize("Root not fully checked out.", "red"))
-    #         return
-    #
-    #     return self.do_archive_local(args)
+    def get_prompt_text(self) -> str:
+        return self.prompt_separator.join([self._rootShell.get_prompt_text(),"GitLab_server_command"])
 
-    # def asset_completion(self,text,line,begidx,endidx):
-    # ret = []
-    # localconfig = self._GetConfig()
-    ##storageReg = fiepipelib.storage.localvolume.localvolumeregistry(self._localUser)
-    # mapper = fiepipelib.gitstorage.localstoragemapper.localstoragemapper(self._localUser)
-    # assets = localconfig.GetWorkingAssets(mapper,True)
-    # for asset in assets:
-    # id = asset.GetAsset().GetID()
-    # if id.lower().startswith(text.lower()):
-    # ret.append(id)
-    # path = asset.GetSubmodule().path
-    # if path.lower().startswith(text.lower()):
-    # ret.append(path)
-    # return ret
+    _rootShell: Shell = None
 
-    # def _get_asset(self, pathorid):
-    #     """Returns a workingasset for a path or id from this root, if possible.
-    #     """
-    #     # storageReg = fiepipelib.storage.localvolume.localvolumeregistry(self._localUser)
-    #     mapper = fiepipelib.gitstorage.localstoragemapper.localstoragemapper(self._localUser)
-    #     localconfig = self._GetConfig()
-    #     assets = localconfig.GetWorkingAssets(mapper, True)
-    #     for asset in assets:
-    #
-    #         id = asset.GetAsset().GetID()
-    #         if id.lower() == pathorid.lower():
-    #             return asset
-    #
-    #         path = asset.GetSubmodule().path
-    #         if os.path.samefile(path, pathorid):
-    #             return asset
-    #
-    #     print("No asset found: " + pathorid)
-    #     raise KeyError("Asset not found: " + pathorid)
+    def __init__(self, rootShell: Shell):
+        self._rootShell = rootShell
+        super().__init__()
 
-    # complete_asset_shell = asset_completion
+    def complete_enter(self, text, line, begidx, endidx):
+        user = LocalUserRoutines(get_local_platform_routines())
+        man = GitLabServerManager(user)
+        ret = []
+        for server in man.GetAll():
+            if server.get_name().startswith(text):
+                ret.append(server.get_name())
+        return ret
 
-    # def do_asset_shell(self, args):
-    # """Enters a subshell for working with the given asset
+    def do_enter(self, args):
+        """Enters a shell for working with this GitRoot to/from a GitLab server.
+        Usage: enter [name]
 
-    # Usage: asset_shell [asset]
+        arg name:  The name of the GitLab server to use.
+        """
+        args = self.parse_arguments(args)
+        if len(args) == 0:
+            self.perror("No server name given.")
+            return
 
-    # arg asset: either the subpath or id of an asset in the current root.
-    # """
+        routines = self._rootShell.get_routines()
+        routines.load()
 
-    # if args == None:
-    # print("No asset specified.")
-    # return
 
-    # if args == "":
-    # print("No asset specified.")
-    # return
+        server_routines = GitLabServerRoutines(args[0])
+        root_routines = GitLabFQDNGitRootRoutines(server_routines, routines.root, routines.root_config,
+                                          routines.container.GetFQDN())
 
-    # asset = self._get_asset(args)
-    # path = asset.GetSubmodule().path
-    # shell = fiepipelib.shells.gitasset.Shell(asset,path,self._container,self._containerConfig,self._GetRoot(),self._GetConfig(),self._localUser,self._entity,self._site)
-    # shell.cmdloop()
-
-    # complete_ash = asset_completion
-
-    # def ash(self, args):
-    # """Alias for asset_shell command
-    # """
-    # self.do_asset_shell(args)
-
-    # complete_create_asset = functools.partial(cmd2.Cmd.path_complete)
-
-    # def do_create_asset(self, args):
-    # """Create a new asset at the given path
-
-    # Usage: create_asset [path]
-
-    # arg path: The subpath to an asset to create.  It will be created whether the files/dir already exist, or not.
-    # """
-
-    # if args == None:
-    # print("No path specified.")
-    # return
-
-    # if args == "":
-    # print("No path specified.")
-    # return
-
-    ##storageReg = fiepipelib.storage.localvolume.localvolumeregistry(self._localUser)
-    # mapper = fiepipelib.gitstorage.localstoragemapper.localstoragemapper(self._localUser)
-    # config = self._GetConfig()
-    # rootPath = os.path.abspath(config.GetWorkingPath(mapper))
-
-    # if os.path.isabs(args):
-    # if not args.startswith(rootPath):
-    # print(self.colorize("Absolute path isn't inside root path: " + args,"red"))
-    # return
-    # else:
-    # args = os.path.relpath(args,rootPath)
-    ##args is now certainly a relative path
-
-    # rep = self._GetLocalRepo()
-
-    # (creationRepo,creationSubPath) = fiepipelib.gitstorage.routines.submodules.CanCreateSubmodule(rep,args)
-
-    # if creationRepo == None:
-    # print( self.colorize("Cannot create asset at the given path.","red"))
-    # print("It might exist already.  Or it might be in a submodule that's not currently checked out.")
-    # return
-
-    # newid = fiepipelib.gitstorage.asset.NewID()
-    # print("Creating new submodule for asset.")
-    # submod = fiepipelib.gitstorage.routines.submodules.CreateFromSubDirectory(creationRepo,creationSubPath,newid)
-
-    # complete_delete_asset = asset_completion
-
-    # def do_delete_asset(self, args):
-    # """Deletes an asset from the root.  WARNING: this is not just a local change.  You are actually removing the asset from the project.
-
-    # Doesn't clean the asset form backing stores.  If you really screw up, you can still recover from old versions of the root so long
-    # as the asset's repositories still exist in the system and the submodule entry is recreated with the same name|id.
-
-    # Usage: delete_asset [path|id]
-
-    # arg path|id:  The subpath or id of the asset do delete.
-    # """
-
-    # if args == None:
-    # print("No asset specified.")
-    # return
-    # if args == "":
-    # print("No asset specified.")
-    # return
-
-    # workingAsset = self._get_asset(args)
-    # rootRepo = self._GetLocalRepo()
-    # fiepipelib.gitstorage.routines.submodules.Remove(rootRepo,workingAsset.GetAsset().GetID())
+        shell = GitLabGitRootShell(root_routines)
+        shell.cmdloop()
 
 
 class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
@@ -449,8 +244,10 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
 
     complete_delete = asset_completion
 
-    def do_delete(self, args):
-        """Deletes an asset from the root.  WARNING: this is not just a local change.  You are actually removing the asset from the project.
+    def do_remove(self, args):
+        """Removes (deletes) an asset from the root.
+
+        WARNING: this is not just a local change.  You are actually removing the asset from the project.
 
         Doesn't clean the asset form backing stores.  If you really screw up, you can still recover from old versions of the root so long
         as the asset's repositories still exist in the system and the submodule entry is recreated with the same name|id.
@@ -509,7 +306,7 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         asset = routines.get_asset(args[0])
 
         path = asset.GetSubmodule().path
-        shell = GitAssetShell(routines.container.GetID(),routines.root.GetID(),asset.GetAsset().GetID())
+        shell = GitAssetShell(routines.container.GetID(), routines.root.GetID(), asset.GetAsset().GetID())
         # shell = fiepipelib.shells.gitasset.Shell(asset, path, self._rootShell._container,
         #                                          self._rootShell._containerConfig, self._rootShell._GetRoot(),
         #                                          self._rootShell._GetConfig(), self._rootShell._localUser,
@@ -528,3 +325,25 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         assets = self.do_coroutine(routines.get_all_assets())
         for asset in assets:
             self.poutput(asset.GetSubmodule().path)
+
+    def do_clear_from_worktree(self, args):
+        """Removes (clears) the worktree for the given asset branch.
+        The asset remains in the project for others, it simply clears it from the local worktree
+        and can be checked-out again from appropriate sources (such as gitlab)
+
+        The command is assumed to be recursive.
+
+        Usage: clear_from_worktree [asset]
+
+        arg asset:  The subpath or id of the asset from which to clear the branch.
+        """
+        args = self.parse_arguments(args)
+
+        routines = self._rootShell.get_routines()
+        routines.load()
+        for arg in args:
+            asset = routines.get_asset(arg)
+            asset_routines = GitAssetRoutines(routines.container.GetID(), routines.root.GetID(), asset.GetAsset().GetID(),
+                                              self.get_feedback_ui())
+            asset_routines.load()
+            self.do_coroutine(asset_routines.deinit_branch())

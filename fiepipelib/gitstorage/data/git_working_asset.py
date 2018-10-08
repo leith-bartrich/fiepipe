@@ -15,8 +15,12 @@ class GitWorkingAsset(object):
 
     _submodule = None
 
-    def GetSubmodule(self):
+    def GetSubmodule(self) -> git.Submodule:
         return self._submodule
+
+    def GetRepo(self) -> git.Repo:
+        submod = self.GetSubmodule()
+        return submod.module()
 
     def __init__(self, submodule):
         assert isinstance(submodule, git.Submodule )

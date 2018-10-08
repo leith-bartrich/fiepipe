@@ -10,6 +10,8 @@ from fiepipelib.localplatform.routines.localplatform import get_local_platform_r
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
 
+import git
+import typing
 
 class GitAssetRoutines(object):
     _container_id: str = None
@@ -54,3 +56,40 @@ class GitAssetRoutines(object):
     @property
     def container(self):
         return self._container
+
+    def get_sub_asset_routines(self) -> typing.List['GitAssetRoutines']:
+        ret = []
+        all_sub_assets = self._working_asset.GetSubWorkingAssets()
+        for sub_asset in all_sub_assets:
+            ret.append(GitAssetRoutines(self._container_id,self._root_id,sub_asset.GetAsset().GetID(),self._feedback_ui))
+        return ret
+
+    async def deinit(self):
+        """Un-checks out an asset that is currently checked out."""
+        submod = self._working_asset.GetSubmodule()
+        if submod.exists():
+            repo = submod.repo
+            assert isinstance(repo, git.Repo)
+            repo.git.submodule("deinit", submod.abspath)
+
+    async def deinit_branch(self):
+        """Recursive de-init that de-inits children before parents."""
+        submod = self._working_asset.GetSubmodule()
+        if submod.exists():
+            #children first!
+            for asset_routines in self.get_sub_asset_routines():
+                asset_routines.load()
+                await asset_routines.deinit_branch()
+            #then ourself
+            await self.deinit()
+
+    async def commit_recursive(self, log_message:str):
+        repo = self._working_asset.GetRepo()
+        assert isinstance(repo, git.Repo)
+        if len(repo.untracked_files) != 0:
+            raise git.GitError("Untracked files in asset: " + self._working_asset.GetSubmodule().abspath + ".  Cannot commit.")
+        for sub_asset_routines in self.get_sub_asset_routines():
+            sub_asset_routines.load()
+            await sub_asset_routines.commit_recursive(log_message=log_message)
+        if repo.is_dirty():
+            repo.git.commit("-m" + log_message)

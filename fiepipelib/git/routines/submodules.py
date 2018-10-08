@@ -39,7 +39,7 @@ def Remove(repo, name):
     assert isinstance(submod, git.Submodule)
     submod.remove(module = True, force = True, configuration = True)
 
-def CreateEmpty(repo, subpath, name):
+def CreateEmpty(repo, subpath, name, url:str=None):
     """Creates an empty submodule by creating a new temporary empty repository
     and then adding it as a submodule.  The temporary repo is then deleted.
 
@@ -70,10 +70,13 @@ def CreateEmpty(repo, subpath, name):
     fiepipelib.git.routines.ignore.AddIgnore(tempRepo, ".assetlocal/")
     ret = Add(repo,name,subpath,tempdirpath,None,False)
     tempRepo.close()
-    shutil.rmtree(tempdirpath)
+    fiepipelib.git.routines.repo.DeleteLocalRepo(tempdirpath)
+    #shutil.rmtree(tempdirpath)
+    if url is not None:
+        SetURL(repo,name,url)
     return ret
 
-def ChangeURL(repo, name, url, branch="master", revertGitModulesFile = True):
+def ChangeURL(repo, name, url, revertGitModulesFile = True):
     """Changes the urls in all places. Optionally reverting changes to the .gitmodules file.
 
     The .gitmodules file is tracked by the repository itself and is only used to populate
@@ -92,34 +95,34 @@ def ChangeURL(repo, name, url, branch="master", revertGitModulesFile = True):
     """
     assert isinstance(repo, git.Repo)
     old = GetURL(repo,name)
-    ret = SetURL(repo,name,url,branch)
-    ret = ret + Sync(repo)
+    SetURL(repo,name,url)
+    Sync(repo)
     if (revertGitModulesFile):
-        ret = ret + SetURL(repo,name,old[0],old[1])
-    return ret
+        SetURL(repo,name,old)
 
 def GetURL(repo, name):
     """Gets the url info from the current .gitmodules file.
     @return: A tuple in the format (url,branch)"""
     assert isinstance(repo, git.Repo)
-    oldurl = repo.git.confg("--file=.gitmodules","--get", "submodule." + name + ".url")
-    oldbranch = repo.git.confg("--file=.gitmodules","--get", "submodule." + name + ".branch")
-    return (oldurl,oldbranch)
+    oldurl = repo.git.config("--file=.gitmodules","--get", "submodule." + name + ".url")
+    #oldbranch = repo.git.config("--file=.gitmodules","--get", "submodule." + name + ".branch")
+    #return (oldurl,oldbranch)
+    return oldurl
 
-def SetURL(repo, name, url, branch):
+def SetURL(repo, name, url):
     """Sets the url in the .gitmodules file"""
     assert isinstance(repo, git.Repo)
     ret = "setting url\n"
-    ret = ret + repo.git.config("--file=.gitmodules","submodule."+ name + ".url " + url)
-    ret = ret + "setting branch\n"
-    ret = ret + repo.git.config("--file=.gitmodules","submodule."+ name + ".branch " + branch)
+    ret = ret + repo.git.config("--file=.gitmodules","submodule." + name + ".url", url)
+    #ret = ret + "setting branch\n"
+    #ret = ret + repo.git.config("--file=.gitmodules","submodule."+ name + ".branch " + branch)
     
 def Sync(repo):
     """Pushes the url from .gitmodules to the local repository configurations.
     """
     return repo.git.submodule("sync")
 
-def CreateFromSubDirectory(repo, subpath, name, forgedHistory=False):
+def CreateFromSubDirectory(repo, subpath, name, forgedHistory=False, url:str=None):
     """Creates a submodule from an existing subdirectory in the repository.
 
     If the subdirectory was already comitted, it removes it form tracking before
@@ -193,7 +196,7 @@ def CreateFromSubDirectory(repo, subpath, name, forgedHistory=False):
 
     #make a new submodule
     print("Creating new empty submodule.")
-    ret = CreateEmpty(repo,subpath,name)
+    ret = CreateEmpty(repo,subpath,name,url)
 
     #move contents back in
     for e in os.listdir(tempPath):

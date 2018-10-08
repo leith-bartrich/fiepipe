@@ -1,39 +1,43 @@
-from fiepipelib.gitstorage.data.git_root import SharedGitRootsComponent
 from fiepipelib.container.shared.data.container import LocalContainerManager, Container
-from fiepipelib.container.local_config.data.localcontainerconfiguration import LocalContainerConfigurationManager, LocalContainerConfiguration
-from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
-from fiepipelib.localuser.routines.localuser import LocalUserRoutines
-from fiepipelib.gitstorage.data.git_root import SharedGitRootsComponent, GitRoot
-from fiepipelib.gitstorage.data.local_root_configuration import LocalRootConfigurationsComponent, LocalRootConfiguration
-from fiepipelib.gitstorage.data.git_asset import GitAsset, NewID as NewAssetID
-from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
-from fiepipelib.gitstorage.data.localstoragemapper import localstoragemapper
-from fieui.FeedbackUI import AbstractFeedbackUI
-from fieui.ModalTrueFalseQuestionUI import AbstractModalTrueFalseQuestionUI
-from fiepipelib.git.routines.repo import RepoExists, InitWorkingTreeRoot, DeleteLocalRepo
-from fiepipelib.git.routines.lfs import InstallLFSRepo
-from fiepipelib.git.routines.ignore import CheckCreateIgnore,AddIgnore,GetIgnores,RemoveIgnore
-from fiepipelib.git.routines.submodules import Remove as RemoveSubmodule, CanCreateSubmodule, CreateFromSubDirectory
-from fiepipelib.storage.localvolume import localvolume
-import os.path
 import os
-import git
+import os.path
 import pathlib
 import typing
 
-class GitRootRoutines(object):
+import git
 
+from fiepipelib.container.local_config.data.localcontainerconfiguration import LocalContainerConfigurationManager, \
+    LocalContainerConfiguration
+from fiepipelib.container.shared.data.container import LocalContainerManager, Container
+from fiepipelib.git.routines.ignore import CheckCreateIgnore
+from fiepipelib.git.routines.lfs import InstallLFSRepo
+from fiepipelib.git.routines.repo import RepoExists, InitWorkingTreeRoot, DeleteLocalRepo
+from fiepipelib.git.routines.submodules import Remove as RemoveSubmodule, CanCreateSubmodule, CreateFromSubDirectory
+from fiepipelib.gitstorage.data.git_asset import NewID as NewAssetID
+from fiepipelib.gitstorage.data.git_root import SharedGitRootsComponent, GitRoot
+from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
+from fiepipelib.gitstorage.data.local_root_configuration import LocalRootConfigurationsComponent, LocalRootConfiguration
+from fiepipelib.gitstorage.data.localstoragemapper import localstoragemapper
+from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
+from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
+from fiepipelib.localuser.routines.localuser import LocalUserRoutines
+from fiepipelib.storage.localvolume import localvolume
+from fieui.FeedbackUI import AbstractFeedbackUI
+from fieui.ModalTrueFalseQuestionUI import AbstractModalTrueFalseQuestionUI
+
+
+class GitRootRoutines(object):
     _container_id: str = None
     _root_id: str = None
     _feedback_ui: AbstractFeedbackUI = None
     _true_false_question_ui: AbstractModalTrueFalseQuestionUI
 
-    def __init__(self, container_id:str, root_id:str, feedback_ui:AbstractFeedbackUI, true_false_question_ui:AbstractModalTrueFalseQuestionUI):
+    def __init__(self, container_id: str, root_id: str, feedback_ui: AbstractFeedbackUI,
+                 true_false_question_ui: AbstractModalTrueFalseQuestionUI):
         self._container_id = container_id
         self._root_id = root_id
         self._feedback_ui = feedback_ui
         self._true_false_question_ui = true_false_question_ui
-
 
     def load(self):
         plat = get_local_platform_routines()
@@ -49,7 +53,7 @@ class GitRootRoutines(object):
         self._roots_configuration_component.Load()
         self._root_config = self._roots_configuration_component.get_by_id(self._root_id)
 
-    _user : LocalUserRoutines
+    _user: LocalUserRoutines
     _container: Container
     _container_config: LocalContainerConfiguration
     _roots_component: SharedGitRootsComponent
@@ -66,7 +70,6 @@ class GitRootRoutines(object):
             raise NotADirectoryError(dir)
         os.chdir(dir)
 
-
     def get_local_repo_path(self) -> str:
         mapper = localstoragemapper(self._user)
         dir = self._root_config.GetWorkingPath(mapper)
@@ -74,7 +77,6 @@ class GitRootRoutines(object):
             if os.path.isdir(dir):
                 os.chdir(dir)
         return dir
-
 
     def get_local_repo(self) -> git.Repo:
         """
@@ -98,9 +100,10 @@ class GitRootRoutines(object):
                 statusText = "dirty"
             else:
                 statusText = "clean"
-        await self._feedback_ui.output("root: {0} - {1} - {2} - {3}".format(self.get_local_repo_path(), root.GetID(), existsText, statusText))
+        await self._feedback_ui.output(
+            "root: {0} - {1} - {2} - {3}".format(self.get_local_repo_path(), root.GetID(), existsText, statusText))
 
-    async def print_workingasset_status_routine(self, working_asset:GitWorkingAsset):
+    async def print_workingasset_status_routine(self, working_asset: GitWorkingAsset):
         existsText = "absent"
         statusText = "---"
         if working_asset.GetSubmodule().module_exists():
@@ -111,8 +114,10 @@ class GitRootRoutines(object):
                 statusText = "dirty"
             else:
                 statusText = "clean"
-        await self._feedback_ui.output("asset: {0} - {1} - {2} - {3}".format(working_asset.GetSubmodule().path, working_asset.GetAsset().GetID(), existsText,
-                                                    statusText))
+        await self._feedback_ui.output(
+            "asset: {0} - {1} - {2} - {3}".format(working_asset.GetSubmodule().path, working_asset.GetAsset().GetID(),
+                                                  existsText,
+                                                  statusText))
 
     async def print_status_recursive_routine(self):
         mapper = localstoragemapper(self._user)
@@ -140,7 +145,7 @@ class GitRootRoutines(object):
         os.chdir(dir)
         return
 
-    async def init_new_split(self, backingVolume:localvolume):
+    async def init_new_split(self, backingVolume: localvolume):
         """Initializes a brand new repository for the root with an empty working tree and a repository on a
         specified backing store.  See init_new for other details.
 
@@ -149,14 +154,15 @@ class GitRootRoutines(object):
         arg volume: the name of a mounted backing store to use for the split repository
         """
 
-
         mapper = localstoragemapper(self._user)
 
-        await self._feedback_ui.output("Creating repository on backing volume: " + backingVolume.GetName() + " " + backingVolume.GetPath())
+        await self._feedback_ui.output(
+            "Creating repository on backing volume: " + backingVolume.GetName() + " " + backingVolume.GetPath())
         backingRep = self._root.CreateRepositoryOnBackingVolume(backingVolume)
 
         workingtreepath = self._root_config.GetWorkingPath(mapper)
-        await self._feedback_ui.output("Creating working tree on working volume: " + self._root.GetName() + " " + workingtreepath)
+        await self._feedback_ui.output(
+            "Creating working tree on working volume: " + self._root.GetName() + " " + workingtreepath)
         backingRep.git.worktree("add", workingtreepath)
         workingRepo = git.Repo(workingtreepath)
 
@@ -168,17 +174,17 @@ class GitRootRoutines(object):
         workingRepo.index.commit("Initial commit.")
         os.chdir(workingtreepath)
 
-    async def checkout_worktree_from_backing_routine(self, backingVolume:localvolume):
+    async def checkout_worktree_from_backing_routine(self, backingVolume: localvolume):
         mapper = localstoragemapper(self._user)
-        backingRep = self._root.GetRepositoryOnBackingVolume(backingVolume,create=False)
+        backingRep = self._root.GetRepositoryOnBackingVolume(backingVolume, create=False)
 
         workingtreepath = self._root_config.GetWorkingPath(mapper)
-        await self._feedback_ui.output("Creating working tree on working volume: " + self._root.GetName() + " " + workingtreepath)
+        await self._feedback_ui.output(
+            "Creating working tree on working volume: " + self._root.GetName() + " " + workingtreepath)
         backingRep.git.worktree("add", workingtreepath)
         workingRepo = git.Repo(workingtreepath)
 
         os.chdir(workingtreepath)
-
 
     async def delete_worktree_routine(self):
         dir = self.get_local_repo_path()
@@ -194,6 +200,8 @@ class GitRootRoutines(object):
             await self._feedback_ui.output("Invalid git repository.  Deleting contents of folder.")
             os.chdir(pardir)
             DeleteLocalRepo(dir)
+            if pathlib.Path(dir).exists():
+                await self._feedback_ui.error("Not fully deleted.")
             return
 
         if not rep.has_separate_working_tree():
@@ -204,7 +212,8 @@ class GitRootRoutines(object):
                 return
 
         if rep.is_dirty():
-            reply = self._true_false_question_ui.execute("The root is dirty and probably has uncommited changes.  Are you sure?")
+            reply = await self._true_false_question_ui.execute(
+                "The root is dirty and probably has uncommited changes.  Are you sure?")
             if reply == False:
                 await self._feedback_ui.output("Aboriting.")
                 return
@@ -214,17 +223,19 @@ class GitRootRoutines(object):
         os.chdir(pardir)
         DeleteLocalRepo(dir)
 
-    async def get_all_assets(self) -> typing.List[GitWorkingAsset]:
+        if pathlib.Path(dir).exists():
+            await self._feedback_ui.error("Not fully deleted.")
+
+    async def get_all_assets(self, recursive=True) -> typing.List[GitWorkingAsset]:
         mapper = localstoragemapper(self._user)
         try:
-            assets = self._root_config.GetWorkingAssets(mapper, True)
+            assets = self._root_config.GetWorkingAssets(mapper, recursive)
         except git.InvalidGitRepositoryError:
             await self._feedback_ui.error("Invalid git repository.  Did you init or pull the root?")
             raise
         return assets
 
-
-    def get_asset(self, pathorid:str) -> GitWorkingAsset:
+    def get_asset(self, pathorid: str) -> GitWorkingAsset:
         """Returns a workingasset for a path or id from this root, if possible.
         """
         mapper = localstoragemapper(self._user)
@@ -241,14 +252,12 @@ class GitRootRoutines(object):
 
         raise KeyError("Asset not found: " + pathorid)
 
-
-    def delete_asset(self, pathorid:str):
+    def delete_asset(self, pathorid: str):
         workingAsset = self.get_asset(pathorid)
         rootRepo = self.get_local_repo()
-        RemoveSubmodule(rootRepo,workingAsset.GetAsset().GetID())
+        RemoveSubmodule(rootRepo, workingAsset.GetAsset().GetID())
 
-
-    async def create_asset_routine(self, subpath:str):
+    async def create_asset_routine(self, subpath: str):
         """Create a new asset at the given path
 
         Usage: create [path]
@@ -272,14 +281,26 @@ class GitRootRoutines(object):
 
         if creationRepo is None:
             await self._feedback_ui.error("Cannot create asset at the given path.")
-            await self._feedback_ui.error("It might exist already.  Or it might be in a submodule that's not currently checked out.")
+            await self._feedback_ui.error(
+                "It might exist already.  Or it might be in a submodule that's not currently checked out.")
             return
 
         newid = NewAssetID()
         await self._feedback_ui.output("Creating new submodule for asset.")
-        CreateFromSubDirectory(creationRepo, creationSubPath, newid)
+        CreateFromSubDirectory(creationRepo, creationSubPath, newid, url=newid + ".git")
 
-
+    async def commit(self, log_message: str):
+        repo = self.get_local_repo()
+        if len(repo.untracked_files) != 0:
+            raise git.RepositoryDirtyError("There are untracked files in the root.  Cannot commit.")
+        all_assets = await self.get_all_assets(recursive=False)
+        for asset in all_assets:
+            asset_routines = GitAssetRoutines(self._container_id, self._root_id, asset.GetAsset().GetID(),
+                                              self._feedback_ui)
+            asset_routines.load()
+            await asset_routines.commit_recursive(log_message)
+        if repo.is_dirty():
+            repo.git.commit("-m", log_message)
 
     @property
     def container(self):
@@ -289,3 +310,6 @@ class GitRootRoutines(object):
     def root(self):
         return self._root
 
+    @property
+    def root_config(self):
+        return self._root_config

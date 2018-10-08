@@ -15,7 +15,7 @@ setup(
     url = "http://www.fie.us",
     py_modules=["fiepipe", "fiepipestateserver"],
     packages = find_packages(),
-    install_requires=["rpyc","plumbum","paramiko","cryptography","GitPython","cmd2","bcrypt","pycryptodome","pyreadline","keyboard"],
+    install_requires=["rpyc","plumbum","paramiko","cryptography","GitPython","cmd2","bcrypt","pycryptodome","pyreadline","keyboard","cookiecutter"],
     entry_points={
         'fiepipe.plugin.shell.gitlabserver.shell.v1' : [
             'container = fiepipelib.container.shells.gitlabserver:FIEPipeShellPlugin',

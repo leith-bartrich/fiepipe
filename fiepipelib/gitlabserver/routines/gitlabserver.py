@@ -15,8 +15,7 @@ from fiepipelib.localplatform.routines.localplatform import get_local_platform_r
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
 from fieui.ModalTrueFalseDefaultQuestionUI import AbstractModalTrueFalseDefaultQuestionUI
-
-
+from fiepipelib.storage.localvolume import localvolume
 class GitLabServerRoutines(object):
     """Abstract base routines for a gitlab server manager.  Enforces some basic naming conventions
     on the gilab server.  Such as prepending "fiepipe_" to a gitlab project, and a standardized
@@ -53,8 +52,92 @@ class GitLabServerRoutines(object):
         server = self.get_server()
         return server.get_ssh_url(group_name, "fiepipe_" + type_name + ".git")
 
+    def remote_path_for_gitroot(self, group_name: str, root_id: str) -> str:
+        server = self.get_server()
+        mangled_root_id = str(root_id)
+        mangled_root_id = mangled_root_id.replace("-", "")
+        mangled_root_id = mangled_root_id.replace("_", "")
+        mangled_root_id = mangled_root_id.replace(" ", "")
+        return server.get_ssh_url(group_name, "fiepipe_gitroot_" + mangled_root_id + ".git")
+
+    def remote_path_for_gitasset(self, group_name: str, asset_id: str) -> str:
+        server = self.get_server()
+        mangled_asset_id = str(asset_id)
+        mangled_asset_id = mangled_asset_id.replace("-", "")
+        mangled_asset_id = mangled_asset_id.replace("_", "")
+        mangled_asset_id = mangled_asset_id.replace(" ", "")
+        return server.get_ssh_url(group_name, "fiepipe_gitasset_" + mangled_asset_id + ".git")
+
 
 T = typing.TypeVar("T", bound=AbstractLocalManagedRoutines)
+
+
+class GitLabGitStorageRoutines(abc.ABC):
+    _server_routines: GitLabServerRoutines = None
+
+    def get_server_routines(self) -> GitLabServerRoutines:
+        return self._server_routines
+
+    @abc.abstractmethod
+    def get_group_name(self) -> str:
+        raise NotImplementedError()
+
+    def __init__(self, server_routines: GitLabServerRoutines):
+        self._server_routines = server_routines
+
+    @abc.abstractmethod
+    def get_remote_url(self) -> str:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_local_repo_path(self)-> str:
+        raise NotImplementedError()
+
+    async def pull(self,feedback_ui:AbstractFeedbackUI):
+
+        server = self.get_server_routines().get_server()
+        local_repo_path = self.get_local_repo_path()
+        remote_url = self.get_remote_url()
+
+        await feedback_ui.output("Pulling: " + local_repo_path + " from: " + remote_url)
+
+        if RepoExists(local_repo_path):
+            repo = git.Repo(local_repo_path)
+            remote = create_update_remote(repo, "origin", remote_url)
+            remote = create_update_remote(repo, server.get_name(), remote_url)
+            await feedback_ui.output(("Pulling from master: " + local_repo_path + " <- " + remote_url))
+            remote.pull("master")
+        else:
+            await feedback_ui.error("Repository doesn't exist.  Cannot pull.  You might want to clone it or init it?")
+            return
+
+
+
+
+    async def push(self, feedback_ui:AbstractFeedbackUI):
+
+        server = self.get_server_routines().get_server()
+        remote_url = self.get_remote_url()
+        local_path = self.get_local_repo_path()
+
+        await feedback_ui.output("Pushing: " + local_path + " to: " + remote_url)
+
+        if not RepoExists(local_path):
+            await feedback_ui.error("No local worktree.  You might need to create or pull it first.")
+            return
+
+        repo = git.Repo(local_path)
+
+        if repo.is_dirty(untracked_files=True):
+            await feedback_ui.error("Worktree is dirty or has untracked files.  Aborting.")
+            return
+
+        # we push to the server even if there was no commit because this is a "push" command.
+        # this works for submodules too, we think.  Maybe?
+        remote = create_update_remote(repo, server.get_name(), remote_url)
+        await feedback_ui.output("Pushing to master: " + local_path + " -> " + remote_url)
+        remote.push("master")
+
 
 
 class GitLabManagedTypeRoutines(typing.Generic[T]):

@@ -48,6 +48,16 @@ class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
         root_name = routines._root.GetName()
         return self.prompt_separator.join(['fiepipe', fqdn, container_name, root_name, subpath])
 
+    def do_clear(self, args):
+        """Removes (clears) the working tree of this asset branch.
+
+        Usage: clear
+        """
+        routines = self.get_routines()
+        routines.load()
+        self.do_coroutine(routines.deinit_branch())
+
+
     # _localUser = None
     # _entity = None
     # _site = None
