@@ -269,10 +269,10 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
 
     complete_create_asset = functools.partial(cmd2.Cmd.path_complete)
 
-    def do_create(self, args):
+    def do_create_asset(self, args):
         """Create a new asset at the given path
 
-        Usage: create [path]
+        Usage: create_asset [path]
 
         arg path: The subpath to an asset to create.  It will be created whether the files/dir already exist, or not.
         """
@@ -312,6 +312,7 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         #                                          self._rootShell._GetConfig(), self._rootShell._localUser,
         #                                          self._rootShell._entity, self._rootShell._site)
         shell.cmdloop()
+        routines.check_create_change_dir()
 
     def do_list(self, args):
         """

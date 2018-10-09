@@ -27,6 +27,9 @@ setup(
             'fiepipe_gitlab = fiepipelib.gitlabserver.shell.manager:main',
             'fiepipe_containers = fiepipelib.container.shells.manager:main',
         ],
+        'fiepipe.plugin.gitstorage.lfs.patterns' : [
+            'fiepipe = fiepipelib.gitstorage.routines.lfs_tracked_patterns:get_patterns',
+        ],
     },
     long_description=read('README.txt'),
     classifiers=[

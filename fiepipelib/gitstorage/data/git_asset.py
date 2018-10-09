@@ -137,3 +137,4 @@ class GitAsset(object):
             else:
                 raise fiepipelib.gitstorage.routines.repo.NoSuchRepoError()
         return git.Repo(assetdir)
+
