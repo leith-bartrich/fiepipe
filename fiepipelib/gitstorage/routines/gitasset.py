@@ -129,6 +129,7 @@ class GitAssetRoutines(object):
         configs_path = os.path.join(asset_path, "asset_configs")
         if not os.path.exists(configs_path):
             os.makedirs(configs_path, exist_ok=True)
+            self._working_asset.GetRepo().index.add(["asset_configs"])
         contents = os.listdir(configs_path)
         config_filenames = []
         for entry in contents:

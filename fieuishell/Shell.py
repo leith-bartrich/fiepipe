@@ -73,6 +73,18 @@ class Shell(cmd2.Cmd):
         ret = loop.run_until_complete(f)
         return ret
 
+    def do_print_plugin_names(self,args):
+        """Prints the names of the shell plugins this shell hooks.
+
+        Usage: print_plugin_names
+        """
+        plugin_names = self.get_plugin_names_v1()
+        prepend = self.get_plugin_prepend()
+        postpend = self.get_plugin_postpend()
+
+        for plugin_name in plugin_names:
+            self.poutput(prepend + plugin_name + postpend)
+
     @abc.abstractmethod
     def get_plugin_names_v1(self) -> typing.List[str]:
         """
