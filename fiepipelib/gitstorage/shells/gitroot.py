@@ -1,22 +1,23 @@
-import functools
 import typing
 
 import cmd2
 
 import fiepipelib.shells.AbstractShell
 from fiepipelib.container.shells.container_id_var_command import ContainerIDVariableCommand
-from fiepipelib.gitlabserver.routines.gitlabserver import GitLabServerRoutines
 from fiepipelib.gitlabserver.data.gitlab_server import GitLabServerManager
+from fiepipelib.gitlabserver.routines.gitlabserver import GitLabServerRoutines
 from fiepipelib.gitstorage.data.localstoragemapper import localstoragemapper
 from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
 from fiepipelib.gitstorage.routines.gitlab_server import GitLabFQDNGitRootRoutines
 from fiepipelib.gitstorage.routines.gitroot import GitRootRoutines
 from fiepipelib.gitstorage.shells.gitasset import Shell as GitAssetShell
+from fiepipelib.gitstorage.shells.gitroot_gitlab_server import Shell as GitLabGitRootShell
 from fiepipelib.gitstorage.shells.ui.log_message_input_ui import LogMessageInputUI
 from fiepipelib.gitstorage.shells.vars.root_id import RootIDVarCommand
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
-from fiepipelib.gitstorage.shells.gitroot_gitlab_server import Shell as GitLabGitRootShell
+from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
+
 class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
     _container_id_var: ContainerIDVariableCommand = None
     _root_id_var: RootIDVarCommand = None
@@ -52,7 +53,7 @@ class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
         self.add_submenu(assets_command, "assets", ['as'])
 
         gitlab_command = GitLabServerCommand(self)
-        self.add_submenu(gitlab_command,"gitlab",['gl'])
+        self.add_submenu(gitlab_command, "gitlab", ['gl'])
 
     def get_routines(self) -> GitRootRoutines:
         return GitRootRoutines(self._container_id_var.get_value(), self._root_id_var.get_value(),
@@ -152,11 +153,49 @@ class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
 
         Usage: commit
         """
-        log_message_input_ui = LogMessageInputUI(self)
-        log_message = self.do_coroutine(log_message_input_ui.execute("Log message"))
         routines = self.get_routines()
         routines.load()
+        if not routines.can_commit():
+            self.perror("Root not in commit-able state.")
+            return
+
+        all_assets = self.do_coroutine(routines.get_all_assets(True))
+        for asset in all_assets:
+            asset_id = asset.GetAsset().GetID()
+            asset_routines = routines.get_asset_routines(asset_id)
+            asset_routines.load()
+            if not asset_routines.can_commit():
+                self.perror("Asset not in commit-able state: " + asset_routines._working_asset.GetSubmodule().path)
+                return
+
+        log_message_input_ui = LogMessageInputUI(self)
+        log_message = self.do_coroutine(log_message_input_ui.execute("Log message"))
         self.do_coroutine(routines.commit(log_message))
+
+    def do_status(self, args):
+        routines = self.get_routines()
+        routines.load()
+
+        index_dirty = routines.is_index_dirty()
+        worktree_dirty = routines.is_worktree_dirty()
+        untracked_files = routines.has_untracked()
+
+        if untracked_files:
+            untracked_files_text = self.colorize("Untracked files","orange")
+        else:
+            untracked_files_text = self.colorize("No untracked files","green")
+
+        if index_dirty:
+            index_dirty_text = self.colorize("Index dirty", "yellow")
+        else:
+            index_dirty_text = self.colorize("Index clean", "white")
+
+        if worktree_dirty:
+            worktree_dirty_text = self.colorize("Worktree dirty", "yellow")
+        else:
+            worktree_dirty_text = self.colorize("Worktree clean", "white")
+
+        self.poutput(untracked_files_text + " : " + index_dirty_text + " : " + worktree_dirty_text)
 
 
 class GitLabServerCommand(fiepipelib.shells.AbstractShell.AbstractShell):
@@ -167,7 +206,7 @@ class GitLabServerCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         return ret
 
     def get_prompt_text(self) -> str:
-        return self.prompt_separator.join([self._rootShell.get_prompt_text(),"GitLab_server_command"])
+        return self.prompt_separator.join([self._rootShell.get_prompt_text(), "GitLab_server_command"])
 
     _rootShell: Shell = None
 
@@ -198,10 +237,9 @@ class GitLabServerCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         routines = self._rootShell.get_routines()
         routines.load()
 
-
         server_routines = GitLabServerRoutines(args[0])
         root_routines = GitLabFQDNGitRootRoutines(server_routines, routines.root, routines.root_config,
-                                          routines.container.GetFQDN())
+                                                  routines.container.GetFQDN())
 
         shell = GitLabGitRootShell(root_routines)
         shell.cmdloop()
@@ -267,7 +305,7 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         routines.load()
         routines.delete_asset(args[0])
 
-    complete_create_asset = functools.partial(cmd2.Cmd.path_complete)
+    complete_create_asset = cmd2.Cmd.path_complete
 
     def do_create_asset(self, args):
         """Create a new asset at the given path
@@ -281,6 +319,9 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         if len(args) == 0:
             print("No path specified.")
             return
+
+        args[0] = args[0].replace("\\\\", "/")
+        args[0] = args[0].replace("\\", "/")
 
         routines = self._rootShell.get_routines()
         routines.load()
@@ -344,7 +385,62 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         routines.load()
         for arg in args:
             asset = routines.get_asset(arg)
-            asset_routines = GitAssetRoutines(routines.container.GetID(), routines.root.GetID(), asset.GetAsset().GetID(),
+            asset_routines = GitAssetRoutines(routines.container.GetID(), routines.root.GetID(),
+                                              asset.GetAsset().GetID(),
                                               self.get_feedback_ui())
             asset_routines.load()
             self.do_coroutine(asset_routines.deinit_branch())
+
+    def do_status(self, args):
+        args = self.parse_arguments(args)
+
+        routines = self._rootShell.get_routines()
+        routines.load()
+
+        all_working_assets = self.do_coroutine(routines.get_all_assets(True))
+        for working_asset in all_working_assets:
+            assert isinstance(working_asset, GitWorkingAsset)
+            asset_id = working_asset.GetAsset().GetID()
+            assset_routines = routines.get_asset_routines(asset_id)
+            assset_routines.load()
+            path = assset_routines._working_asset.GetSubmodule().path
+            dirty_index = assset_routines.is_dirty_index()
+            dirty_worktree = assset_routines.is_dirty_worktree()
+            untracked = assset_routines.has_untracked()
+
+            if dirty_index:
+                dirty_index_text = self.colorize('Dirty Index','yellow')
+            else:
+                dirty_index_text = self.colorize('Clean Index','white')
+
+            if dirty_worktree:
+                dirty_worktree_text = self.colorize('Dirty Worktree','yellow')
+            else:
+                dirty_worktree_text = self.colorize('Clean Worktree','white')
+
+            if untracked:
+                untracked_text = self.colorize('Untracked files','orange')
+            else:
+                untracked_text = self.colorize('All files tracked','green')
+
+            self.poutput(path + " - " + untracked_text + " : " + dirty_worktree_text + " : " + dirty_index_text)
+
+    def do_list_uncommitable(self, args):
+        args = self.parse_arguments(args)
+
+        routines = self._rootShell.get_routines()
+        routines.load()
+
+        all_working_assets = self.do_coroutine(routines.get_all_assets(True))
+
+        for working_asset in all_working_assets:
+            assert isinstance(working_asset, GitWorkingAsset)
+            asset_id = working_asset.GetAsset().GetID()
+            assset_routines = routines.get_asset_routines(asset_id)
+            assset_routines.load()
+
+            path = assset_routines._working_asset.GetSubmodule().path
+            can_commit = assset_routines.can_commit()
+
+            if not can_commit:
+                self.poutput(path)

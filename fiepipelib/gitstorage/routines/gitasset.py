@@ -19,6 +19,7 @@ from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
 import pkg_resources
 
+
 class GitAssetRoutines(object):
     _container_id: str = None
     _root_id: str = None
@@ -164,3 +165,46 @@ class GitAssetRoutines(object):
         json.dump(data, f, sort_keys=True, indent=4)
         f.flush()
         f.close()
+
+    def get_untracked(self) -> typing.List[str]:
+        repo = self._working_asset.GetRepo()
+        return repo.untracked_files.copy()
+
+    def has_untracked(self) -> bool:
+        return len(self.get_untracked()) > 0
+
+    def is_dirty_index(self) -> bool:
+        repo = self._working_asset.GetRepo()
+        return repo.is_dirty(working_tree=False,index=True,untracked_files=False)
+
+    def is_dirty_worktree(self) -> bool:
+        repo = self._working_asset.GetRepo()
+        return repo.is_dirty(working_tree=True,index=False,untracked_files=False)
+
+
+    def check_create_change_dir(self):
+        submod = self._working_asset.GetSubmodule()
+        dir = submod.abspath
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+        elif not os.path.isdir(dir):
+            raise NotADirectoryError(dir)
+        os.chdir(dir)
+
+    def can_commit(self)->bool:
+        repo = self._working_asset.GetRepo()
+        work_tree_dirty = repo.is_dirty(working_tree=True, index=False ,untracked_files=False)
+        index_dirty = repo.is_dirty(working_tree=False, index=True ,untracked_files=False)
+        untracked_files = self.has_untracked()
+
+        if untracked_files:
+            return False
+
+        if work_tree_dirty:
+            return False
+
+        return True
+
+
+
+

@@ -18,13 +18,12 @@ from fiepipelib.gitstorage.data.git_root import SharedGitRootsComponent, GitRoot
 from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
 from fiepipelib.gitstorage.data.local_root_configuration import LocalRootConfigurationsComponent, LocalRootConfiguration
 from fiepipelib.gitstorage.data.localstoragemapper import localstoragemapper
-from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fiepipelib.storage.localvolume import localvolume
 from fieui.FeedbackUI import AbstractFeedbackUI
 from fieui.ModalTrueFalseQuestionUI import AbstractModalTrueFalseQuestionUI
-
+from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
 
 class GitRootRoutines(object):
     _container_id: str = None
@@ -247,10 +246,16 @@ class GitRootRoutines(object):
                 return asset
 
             path = asset.GetSubmodule().path
-            if os.path.samefile(path, pathorid):
+            norm_path = os.path.normpath(path)
+            norm_pathorid = os.path.normpath(pathorid)
+            if norm_path == norm_pathorid:
                 return asset
 
         raise KeyError("Asset not found: " + pathorid)
+
+    def get_asset_routines(self, pathorid: str) -> GitAssetRoutines:
+        working_asset = self.get_asset(pathorid)
+        return GitAssetRoutines(self._container_id,self._root_id,working_asset.GetAsset().GetID(),self._feedback_ui)
 
     def delete_asset(self, pathorid: str):
         workingAsset = self.get_asset(pathorid)
@@ -301,6 +306,34 @@ class GitRootRoutines(object):
             await asset_routines.commit_recursive(log_message)
         if repo.is_dirty():
             repo.git.commit("-m", log_message)
+
+    def is_index_dirty(self) -> bool:
+        repo = self.get_local_repo()
+        return repo.is_dirty(index=True,working_tree=False,untracked_files=False)
+
+    def is_worktree_dirty(self) -> bool:
+        repo = self.get_local_repo()
+        return repo.is_dirty(index=True,working_tree=False,untracked_files=False)
+
+    def get_untracked(self) -> typing.List[str]:
+        repo = self.get_local_repo()
+        return repo.untracked_files.copy()
+
+    def has_untracked(self) -> bool:
+        return len(self.get_untracked()) != 0
+
+    def can_commit(self) -> bool:
+        has_untracked = self.has_untracked()
+        index_dirty = self.is_index_dirty()
+        worktree_dirty = self.is_worktree_dirty()
+
+        if has_untracked:
+            return False
+
+        if worktree_dirty:
+            return False
+
+
 
     @property
     def container(self):
