@@ -14,6 +14,9 @@ from fieuishell.ModalInputUI import InputModalShellUI
 from fieuishell.ModalTrueFalseDefaultQuestionUI import ModalTrueFalseDefaultQuestionShellUI
 from fieuishell.ModalTrueFalseQuestionUI import ModalTrueFalseQuestionShellUI
 
+from cmd2_submenu import submenu
+from cmd2.cmd2 import Cmd, parse_quoted_string
+
 
 class Shell(cmd2.Cmd):
     """An abstract base class for routine UI based shells."""
@@ -73,7 +76,7 @@ class Shell(cmd2.Cmd):
         ret = loop.run_until_complete(f)
         return ret
 
-    def do_print_plugin_names(self,args):
+    def do_print_plugin_names(self, args):
         """Prints the names of the shell plugins this shell hooks.
 
         Usage: print_plugin_names
@@ -182,17 +185,17 @@ class Shell(cmd2.Cmd):
             setattr(self.__class__, "complete_" + name, complete)
 
     def add_submenu(self, shell: cmd2.Cmd, name: str, aliases: list):
-        cmd2.AddSubmenu(shell, name, aliases,
-                        reformat_prompt="{sub_prompt}",
-                        shared_attributes=None,
-                        require_predefined_shares=True,
-                        create_subclass=False,
-                        preserve_shares=False,
-                        persistent_history_file=None)(self.__class__)
+        submenu.AddSubmenu(shell, name, aliases,
+                           reformat_prompt="{sub_prompt}",
+                           shared_attributes={"debug":"debug"},
+                           require_predefined_shares=True,
+                           create_subclass=False,
+                           preserve_shares=False,
+                           persistent_history_file=None)(self.__class__)
 
     def parse_arguments(self, line: str) -> typing.List[str]:
         """Parses aruguments from a string into a list of arguments as per the underlying Cmd implementation."""
-        return cmd2.parse_quoted_string(line)
+        return parse_quoted_string(line, preserve_quotes=False)
 
     def argument_exists(self, args: typing.List[str], lookingFor: typing.List[str]) -> bool:
         """Returns True or False if any of the given lookingFor arguments are in the given args list."""
