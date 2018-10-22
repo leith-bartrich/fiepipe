@@ -1,8 +1,10 @@
+import typing
+
 import git
 
 
 def InstallLFSGlobal():
-    git.Repo.git.lfs("install")
+    git.Git().lfs("install")
 
 
 def InstallLFSRepo(repo: git.Repo):
@@ -22,15 +24,27 @@ def Track(repo: git.Repo, patterns):
     track_args = ["track"]
     track_args.extend(quoted)
     ret = repo.git.lfs(track_args)
-    rm_args = ["--cached","--ignore-unmatch"]
+    rm_args = ["--cached", "--ignore-unmatch"]
     rm_args.extend(quoted)
     ret = ret + repo.git.rm(rm_args)
-    #for pattern in patterns:
-        # we always do this just incase.
+    # for pattern in patterns:
+    # we always do this just incase.
     #    ret = ret + repo.git.rm("--cached", "--ignore-unmatch", pattern)
     #        if readd:
     # fails when there are not such files becausee there is no --ignore-unmatched for the add command.
     #            ret  = ret + repo.git.add(pattern)
+    AddGitAttributes(repo)
+    return ret
+
+
+def Untrack(repo: git.Repo, patterns: typing.List[str]):
+    quoted = []
+    for pattern in patterns:
+        quoted.append("'" + pattern + "'")
+    patterns_string = " ".join(quoted)
+    track_args = ["untrack"]
+    track_args.extend(quoted)
+    ret = repo.git.lfs(track_args)
     AddGitAttributes(repo)
     return ret
 

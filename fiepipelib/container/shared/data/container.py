@@ -42,7 +42,7 @@ class Container(object):
 
     _fqdn = None
 
-    def GetFQDN(self):
+    def GetFQDN(self) -> str:
         """The FQDN to which this container belongs."""
         return self._fqdn
 

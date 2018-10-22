@@ -76,7 +76,7 @@ class Command(LocalManagedTypeCommand):
             self.perror("Need both a fqdn and a dir.")
             return
 
-        self.do_coroutine(self.GetRoutines().ExportRegisteredRoutine(args[0], args[1]))
+        self.do_coroutine(self.get_routines().ExportRegisteredRoutine(args[0], args[1]))
 
     complete_register = LocalManagedTypeCommand.type_complete
 

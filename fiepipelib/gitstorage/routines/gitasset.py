@@ -205,6 +205,10 @@ class GitAssetRoutines(object):
 
         return True
 
+    @property
+    def working_asset(self):
+        return self._working_asset
+
 
 
 

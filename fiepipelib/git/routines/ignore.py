@@ -16,18 +16,22 @@ def CheckCreateIgnore(repo):
     
     return ignorePath
 
-def AddIgnore(repo, pattern):
+def AddIgnore(repo, pattern:str, replace_slashes=True):
+    if replace_slashes:
+        pattern = pattern.replace('\\','/')
     assert isinstance(repo, git.Repo)
     ignorePath = CheckCreateIgnore(repo)
     with ignorePath.open() as f:
         lines = f.readlines()
     for line in lines:
         if line.strip() == pattern.strip():
-            print("Pattern already ignored: " + pattern)
             return
-    lines.append(pattern)
+    lines.append(pattern + '\n')
     with ignorePath.open('w') as f:
-        f.writelines(lines)
+        for line in lines:
+            stripped = line.strip()
+            if stripped != '':
+                f.write(line)
 
 def RemoveIgnore(repo, pattern):
     assert isinstance(repo, git.Repo)
