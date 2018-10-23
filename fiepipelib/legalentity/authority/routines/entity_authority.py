@@ -81,7 +81,7 @@ class LegalEntityAuthorityManagerRoutines(AbstractLocalManagedRoutines[LegalEnti
             raise IOError("Not absolute: " + dirPath)
         entities = self.GetManager().GetByFQDN(fqdn)
 
-        if len(entities == 0):
+        if len(entities) == 0:
             await self.get_feedback_ui().error("authored entity not found: " + fqdn)
             raise IOError("Not found.")
 

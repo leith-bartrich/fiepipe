@@ -1,7 +1,7 @@
-from fiepipelib.container.shared.data.container import LocalContainerManager, Container
 import os
 import os.path
 import pathlib
+import shlex
 import typing
 
 import git
@@ -18,14 +18,16 @@ from fiepipelib.gitstorage.data.git_root import SharedGitRootsComponent, GitRoot
 from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
 from fiepipelib.gitstorage.data.local_root_configuration import LocalRootConfigurationsComponent, LocalRootConfiguration
 from fiepipelib.gitstorage.data.localstoragemapper import localstoragemapper
+from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
+from fiepipelib.gitstorage.routines.gitrepo import GitRepoRoutines
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fiepipelib.storage.localvolume import localvolume
 from fieui.FeedbackUI import AbstractFeedbackUI
 from fieui.ModalTrueFalseQuestionUI import AbstractModalTrueFalseQuestionUI
-from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
 
-class GitRootRoutines(object):
+
+class GitRootRoutines(GitRepoRoutines):
     _container_id: str = None
     _root_id: str = None
     _feedback_ui: AbstractFeedbackUI = None
@@ -88,6 +90,9 @@ class GitRootRoutines(object):
         if not os.path.isdir(rep.working_tree_dir):
             raise NotADirectoryError(rep.working_tree_dir)
         return rep
+
+    def get_repo(self) -> git.Repo:
+        return self.get_local_repo()
 
     async def print_status_routine(self):
         existsText = "absent"
@@ -255,7 +260,7 @@ class GitRootRoutines(object):
 
     def get_asset_routines(self, pathorid: str) -> GitAssetRoutines:
         working_asset = self.get_asset(pathorid)
-        return GitAssetRoutines(self._container_id,self._root_id,working_asset.GetAsset().GetID(),self._feedback_ui)
+        return GitAssetRoutines(self._container_id, self._root_id, working_asset.GetAsset().GetID(), self._feedback_ui)
 
     def delete_asset(self, pathorid: str):
         workingAsset = self.get_asset(pathorid)
@@ -294,46 +299,57 @@ class GitRootRoutines(object):
         await self._feedback_ui.output("Creating new submodule for asset.")
         CreateFromSubDirectory(creationRepo, creationSubPath, newid, url=newid + ".git")
 
-    async def commit(self, log_message: str):
-        repo = self.get_local_repo()
-        if len(repo.untracked_files) != 0:
-            raise git.RepositoryDirtyError("There are untracked files in the root.  Cannot commit.")
+    async def commit_all_recursive(self, log_message: str):
+        repo = self.get_repo()
+        can_commit, reason = self.can_commit()
+        if not can_commit:
+            raise git.RepositoryDirtyError("root dirty: " + reason)
         all_assets = await self.get_all_assets(recursive=False)
         for asset in all_assets:
             asset_routines = GitAssetRoutines(self._container_id, self._root_id, asset.GetAsset().GetID(),
                                               self._feedback_ui)
             asset_routines.load()
             await asset_routines.commit_recursive(log_message)
+
+        self.add_submodule_versions()
         if repo.is_dirty():
-            repo.git.commit("-m", log_message)
+            repo.git.commit("-m", shlex.quote(log_message))
 
     def is_index_dirty(self) -> bool:
         repo = self.get_local_repo()
-        return repo.is_dirty(index=True,working_tree=False,untracked_files=False)
+        return repo.is_dirty(index=True, working_tree=False, untracked_files=False, submodules=False)
 
     def is_worktree_dirty(self) -> bool:
         repo = self.get_local_repo()
-        return repo.is_dirty(index=True,working_tree=False,untracked_files=False)
+        return repo.is_dirty(index=True, working_tree=False, untracked_files=False, submodules=False)
 
-    def get_untracked(self) -> typing.List[str]:
+    def can_commit(self) -> (bool, str):
         repo = self.get_local_repo()
-        return repo.untracked_files.copy()
 
-    def has_untracked(self) -> bool:
-        return len(self.get_untracked()) != 0
+        dirty_index = repo.is_dirty(index=True, working_tree=False, untracked_files=False, submodules=False)
 
-    def can_commit(self) -> bool:
-        has_untracked = self.has_untracked()
-        index_dirty = self.is_index_dirty()
-        worktree_dirty = self.is_worktree_dirty()
+        dirty_worktree = repo.is_dirty(index=False, working_tree=True, untracked_files=False, submodules=False)
 
-        if has_untracked:
-            return False
+        if dirty_worktree:
+            return False, "Dirty WorkTree"
 
-        if worktree_dirty:
-            return False
+        untracked_files = repo.is_dirty(index=False, working_tree=False, untracked_files=True, submodules=False)
 
+        if untracked_files:
+            return False, "Untracked Files"
 
+        return True, "OK"
+
+        #return (not repo.is_dirty(index=False, working_tree=True, untracked_files=True, submodules=True))
+        # has_untracked = self.has_untracked()
+        # index_dirty = self.is_index_dirty()
+        # worktree_dirty = self.is_worktree_dirty()
+
+        # if has_untracked:
+        #     return False
+        #
+        # if worktree_dirty:
+        #     return False
 
     @property
     def container(self):

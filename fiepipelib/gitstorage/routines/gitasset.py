@@ -1,6 +1,7 @@
 import json
 import os
 import os.path
+import shlex
 import typing
 
 import git
@@ -8,19 +9,18 @@ import git
 from fiepipelib.container.local_config.data.localcontainerconfiguration import LocalContainerConfigurationManager, \
     LocalContainerConfiguration
 from fiepipelib.container.shared.data.container import LocalContainerManager, Container
-from fiepipelib.git.routines.lfs import Track
 from fiepipelib.gitstorage.data.git_asset import GitAsset
 from fiepipelib.gitstorage.data.git_root import GitRoot, SharedGitRootsComponent
 from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
 from fiepipelib.gitstorage.data.local_root_configuration import LocalRootConfiguration, LocalRootConfigurationsComponent
 from fiepipelib.gitstorage.data.localstoragemapper import localstoragemapper
+from fiepipelib.gitstorage.routines.gitrepo import GitRepoRoutines
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
-import pkg_resources
 
 
-class GitAssetRoutines(object):
+class GitAssetRoutines(GitRepoRoutines):
     _container_id: str = None
     _root_id: str = None
     _asset_id: str = None
@@ -40,6 +40,9 @@ class GitAssetRoutines(object):
     _root_config: LocalRootConfiguration
     _asset: GitAsset
     _working_asset: GitWorkingAsset
+
+    def get_repo(self) -> git.Repo:
+        return self._working_asset.GetRepo()
 
     def load(self):
         plat = get_local_platform_routines()
@@ -101,28 +104,7 @@ class GitAssetRoutines(object):
             sub_asset_routines.load()
             await sub_asset_routines.commit_recursive(log_message=log_message)
         if repo.is_dirty():
-            repo.git.commit("-m" + log_message)
-
-    async def update_lfs_track_patterns(self):
-        """Updates the tracked patterns for lfs for this asset.
-
-        Calls all plugins of type: fiepipe.plugin.gitstorage.lfs.patterns
-        Where the method signature is (assetRoutines:AssetRoutines, patterns:List[str])
-        The patterns list should be added/appended/modified to contain a list of
-        lfs patterns to track.  The list will have been modified by other plugins prior.  Care
-        should be taken not to trample other plugins additions.
-
-        The AssetRoutines argument provides all kinds of context by which to make decisions.  It will have been 'loaded'
-        prior to being passed.
-        """
-        repo = self._working_asset.GetRepo()
-        patterns = []
-
-        entrypoints = pkg_resources.iter_entry_points("fiepipe.plugin.gitstorage.lfs.patterns")
-        for entrypoint in entrypoints:
-            method = entrypoint.load()
-            method(self, patterns)
-        Track(repo, patterns)
+            repo.git.commit("-m" + shlex.quote(log_message))
 
     def get_config_names(self) -> typing.List[str]:
         """Returns names of config files in the asset.  No file extensions."""
@@ -166,21 +148,13 @@ class GitAssetRoutines(object):
         f.flush()
         f.close()
 
-    def get_untracked(self) -> typing.List[str]:
-        repo = self._working_asset.GetRepo()
-        return repo.untracked_files.copy()
-
-    def has_untracked(self) -> bool:
-        return len(self.get_untracked()) > 0
-
     def is_dirty_index(self) -> bool:
         repo = self._working_asset.GetRepo()
-        return repo.is_dirty(working_tree=False,index=True,untracked_files=False)
+        return repo.is_dirty(working_tree=False, index=True, untracked_files=False)
 
     def is_dirty_worktree(self) -> bool:
         repo = self._working_asset.GetRepo()
-        return repo.is_dirty(working_tree=True,index=False,untracked_files=False)
-
+        return repo.is_dirty(working_tree=True, index=False, untracked_files=False)
 
     def check_create_change_dir(self):
         submod = self._working_asset.GetSubmodule()
@@ -191,20 +165,28 @@ class GitAssetRoutines(object):
             raise NotADirectoryError(dir)
         os.chdir(dir)
 
-    def can_commit(self)->bool:
+    def can_commit(self) -> (bool, str):
         repo = self._working_asset.GetRepo()
-        work_tree_dirty = repo.is_dirty(working_tree=True, index=False ,untracked_files=False)
-        index_dirty = repo.is_dirty(working_tree=False, index=True ,untracked_files=False)
+
+        work_tree_dirty = repo.is_dirty(working_tree=True, index=False, untracked_files=False, submodules=False)
+
+        if work_tree_dirty:
+            return False, "Dirty WorkTree"
+
+        # index_dirty = repo.is_dirty(working_tree=False, index=True ,untracked_files=False)
+
         untracked_files = self.has_untracked()
 
         if untracked_files:
-            return False
+            return False, "Untracked Files"
 
-        if work_tree_dirty:
-            return False
+        modified_files = len(self.get_modified()) > 0
 
-        return True
+        if modified_files:
+            return False, "Modified Files"
 
+        return True, "OK"
 
-
-
+    @property
+    def working_asset(self):
+        return self._working_asset

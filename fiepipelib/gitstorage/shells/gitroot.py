@@ -17,8 +17,10 @@ from fiepipelib.gitstorage.shells.vars.root_id import RootIDVarCommand
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
+from fiepipelib.gitstorage.shells.gitrepo import GitRepoShell
 
-class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
+
+class Shell(GitRepoShell):
     _container_id_var: ContainerIDVariableCommand = None
     _root_id_var: RootIDVarCommand = None
 
@@ -148,7 +150,7 @@ class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
         routines.load()
         self.do_coroutine(routines.delete_worktree_routine())
 
-    def do_commit(self, args):
+    def do_commit_all(self, args):
         """Commits the changes in the asset tree and the root.
 
         Usage: commit
@@ -170,9 +172,9 @@ class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
 
         log_message_input_ui = LogMessageInputUI(self)
         log_message = self.do_coroutine(log_message_input_ui.execute("Log message"))
-        self.do_coroutine(routines.commit(log_message))
+        self.do_coroutine(routines.commit_all_recursive(log_message))
 
-    def do_status(self, args):
+    def do_status_all(self, args):
         routines = self.get_routines()
         routines.load()
 
