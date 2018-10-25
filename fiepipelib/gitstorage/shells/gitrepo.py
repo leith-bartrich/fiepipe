@@ -158,7 +158,8 @@ class GitRepoShell(fiepipelib.shells.AbstractShell.AbstractShell, abc.ABC):
         routines.load()
         can, reason = routines.can_commit()
         if can:
-            self.poutput(self.colorize("OK",'green'))
+            self.poutput(self.colorize("Yes",'green'))
+            self.poutput(self.colorize(reason,'green'))
         else:
             self.poutput(self.colorize("No",'orange'))
             self.poutput(self.colorize(reason,'yellow'))

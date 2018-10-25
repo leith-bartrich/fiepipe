@@ -95,6 +95,8 @@ class GitAssetRoutines(GitRepoRoutines):
             await self.deinit()
 
     async def commit_recursive(self, log_message: str):
+        if not self._working_asset.IsCheckedOut():
+            return
         repo = self._working_asset.GetRepo()
         assert isinstance(repo, git.Repo)
         if len(repo.untracked_files) != 0:
@@ -104,7 +106,10 @@ class GitAssetRoutines(GitRepoRoutines):
             sub_asset_routines.load()
             await sub_asset_routines.commit_recursive(log_message=log_message)
         if repo.is_dirty():
-            repo.git.commit("-m" + shlex.quote(log_message))
+            await self._feedback_ui.feedback("Commiting: " + self._working_asset.GetSubmodule().path)
+            log = repo.git.commit("-m" + shlex.quote(log_message))
+            await self._feedback_ui.output(log)
+
 
     def get_config_names(self) -> typing.List[str]:
         """Returns names of config files in the asset.  No file extensions."""
@@ -166,6 +171,8 @@ class GitAssetRoutines(GitRepoRoutines):
         os.chdir(dir)
 
     def can_commit(self) -> (bool, str):
+        if not self._working_asset.IsCheckedOut():
+            return True, "OK: Not checked out"
         repo = self._working_asset.GetRepo()
 
         work_tree_dirty = repo.is_dirty(working_tree=True, index=False, untracked_files=False, submodules=False)

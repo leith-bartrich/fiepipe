@@ -122,7 +122,7 @@ class GitLabGitAssetRoutines(GitLabGitStorageRoutines, ABC):
             old_url = fiepipelib.git.routines.submodules.GetURL(submod.repo, submod.name)
             fiepipelib.git.routines.submodules.ChangeURL(submod.repo, submod.name, remote_url,
                                                          revertGitModulesFile=False)
-            textout = submod.repo.git.submodule("update", "--init", submod.abspath)
+            textout = submod.repo.git.submodule("update", "--init", submod.path)
             await feedback_ui.output(textout)
             fiepipelib.git.routines.submodules.ChangeURL(submod.repo, submod.name, old_url, revertGitModulesFile=False)
             # repo.git.submodule("init",submod.abspath)
@@ -142,7 +142,7 @@ class GitLabGitAssetRoutines(GitLabGitStorageRoutines, ABC):
         if submod.exists():
             repo = submod.repo
             assert isinstance(repo, git.Repo)
-            repo.git.submodule("deinit", submod.abspath)
+            repo.git.submodule("deinit", submod.path)
 
     async def deinit_branch(self):
         """Recursive de-init that de-inits children before parents."""
