@@ -19,7 +19,7 @@ def Track(repo: git.Repo, patterns):
     """
     quoted = []
     for pattern in patterns:
-        quoted.append("'" + pattern + "'")
+        quoted.append("\"" + pattern + "\"")
     patterns_string = " ".join(quoted)
     track_args = ["track"]
     track_args.extend(quoted)
