@@ -161,5 +161,5 @@ class GitRepoShell(fiepipelib.shells.AbstractShell.AbstractShell, abc.ABC):
             self.poutput(self.colorize("Yes",'green'))
             self.poutput(self.colorize(reason,'green'))
         else:
-            self.poutput(self.colorize("No",'orange'))
+            self.poutput(self.colorize("No",'red'))
             self.poutput(self.colorize(reason,'yellow'))
