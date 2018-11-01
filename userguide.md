@@ -132,6 +132,49 @@ There's still a need for it.
 This is not the same as having a client.  As a consultant working under my fie.us banner, I might have plenty of different clients.
 But there are other organizational structure to keep them separate within the fie.us legal entity.
 
+Also, I don't have to create every legal entity on every computer.  My work computers probably just have fie.us on them.
+
+And going forward, I'll probably stick to the simpler fie.us and bradley.friedman.private entities for my examples.
+
+Keep in mind, we have not actually set up any sharing or syncing or servers.  There are tools for sharing legal entities and
+managing lists of them between computers.  But we won't get into them right now.  Separate from the methods I've inlcuded in fiepip for
+accomplishing managment of legal entities across computers, its also possible to author custom plugins for doing that as well.
+
+### authority
+
+There are tools for managing authorty over a legal entity.
+
+This is the literal creation of a legal entity and you should not be doing it unless you are that actual legal entity.
+
+For example, I own fie.us.  So I do actually manage the authoritative legal entity for fie.us.  But if I hire someone, they are not the authority.  They instead, want to register the legal entity (covered later.)
+
+A legal entity authority contains private encryption keys that allow you to sign and delegate authority.  So that others may verify that you did indeed sign and delegate those things.
+
+You keep your authority information SECRET.  LOCKED UP.  IN A SAFE. OFFLINE.  AIR GAPPED.  etc.
+
+### registry
+
+Usually, you'll be working with registered legal entities.  Which usually are just referred to as legal entitties.
+
+A registered legal entity contains public encryption keys that can be used to verify that the authority signed and delegated its authority to third parites.  Though the registration itself does not inherently prove you are authorized.
+
+By registering a legal entity, you are agreeing that the legal entity is subordinate and agrees to the authority that issued it.
+
+You generally make your legal entity registry public and widely available.  It contains information on how to interact with you and how to authenticate that you are you.  It does not actually contain any private or confidential information.  It has no authority itself.
+
+Again, since a user can force their own computer to believe anything they tell it to, there is no reason to pretend that they can't pretend to be you on their own computer.  The danger would be if they could make other computers that they don't control, believe they were you.  And that is why legal entity authority is separate form legal entity registration.
+
+### the exception
+
+When you are truly creating a version of the legal entity that should NOT subordinate itself to an existing authority, you need to be the authority.  You are creating a compartmentalized version of the entity.  You might do this because:
+
+* you truly are setting up a classified or confidential compartment/system for the legal entity
+* you have a need to control a compartment because its your
+  * employment contract
+  * medical insurance information
+  * tax information
+  * etc
+
 ## Container
 
 ## Git Storage
