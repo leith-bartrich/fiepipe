@@ -34,6 +34,19 @@ fiepipe is plugin based.  Therefore, the basic fiepipe system is a bit abstract.
 it.  This makes sense when you think of it as a data/context based system.  The better you specify what it is exactly you are working on, the 
 more specific the options as to what you can do with that thing or within that context are.
 
+## No/Little System Wide Setup
+
+fiepipe is meant to be able to be installed by a user to their own user-space resources using only a recent version of Python if need be.  This is purposful.  It is intended that individuals be able to use it at a company, for their own personal workflow, even if the
+company has not adopted it.
+
+Therefore, there is very little system wide setup neccesary or even available.  A user is an island for the most part, by default, and opts in to entities and resources.
+
+Though, a system administrator can do the install and provide it system wide.  They can also install plugins system wide.  Those plugins can be very entity specific in nature.
+
+The majority of sharing or infrastructure functionality is meant to be handled over the network, rather than between users on a single system.
+
+A custom company command/plugin is always capable of automatically setting up network resources and local resources.  And this is the preferred way to ensure the availability of standardized and shared resources within a fiepipe system.
+
 ## Shells
 
 For now, fiepipe's UI is shell based.  It is meant to be able to expand to many kinds of UI and GUI.  But for now, the most complete
