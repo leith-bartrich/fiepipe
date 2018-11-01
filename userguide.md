@@ -85,7 +85,52 @@ Running that command jumps me into a new shell context.
 
 ## Legal Entity
 
+A legal entity can be thought of two ways.
 
+1. It's a company or individual.
+2. It's a legal piece or fraction of yourself.
+
+Remember that within your user on your computer system, you are master of your domain.
+As long as the kernal allows it, the computer will do as you say.  So if you say you are the president of Microsoft, the computer
+and the fiepipe system will believe you.  Other computers, services and users might not and you can't force them to.  But within
+userspace, you are king.  In the
+most extreme situation, you can modify the source code to whatever you are running, to force such a belief.  Therefore, there's
+not much
+point in designing software that pretends you don't have that power.
+
+So, within my system, when I run fiepipe, I probably have two legal entities registered and ready to work with.
+
+* fie.us
+* bradley.friedman.private
+
+Actually that might even be too simplistic.  I might have this setup:
+
+* fie.us
+* bradley.friedman.private
+* ny.friedmans.private
+* fl.friedmans.private
+* methodstudios.com
+
+The fie.us entity is perhaps easiest to understand.  That's my LLC and my work at my LLC belongs in that context.  My projects and such.
+
+The bradley.friedman.private entity is separate and represents me, as an individual.  I'd keep my medical stuff here, obviously.
+
+The ny.friedmans.private entity would be the entity for my nuclear family that I grew up with.  It's a place for shared things.
+
+The fl.friedmans.private entity would be the entity I set up for my new nuclear family as an adult.  Again, a place for shared things.
+
+The methodstudios.com entity is where I used to work.
+
+Any really, any job I'd have over the years, would need its own legal entity.  Either that company would define one, or I might need
+to create one.  When I was at work on a work computer, the company's legal entity might be installed for me.  But even on my home
+machine, I'd be likely
+to create it.  Just to hold on to documents that I should keep with regard to the aspect of my life that belongs to that entity.
+For example,
+I might need to keep my employment contract in such an entity even if I am forbidden to have anything work related outside the office.
+There's still a need for it.
+
+This is not the same as having a client.  As a consultant working under my fie.us banner, I might have plenty of different clients.
+But there are other organizational structure to keep them separate within the fie.us legal entity.
 
 ## Container
 
