@@ -1,7 +1,8 @@
-#fiepipe
+# fiepipe
+
 By Bradley Friedman, FIE LLC
 
-##DESCRIPTION:
+## DESCRIPTION:
 
 fiepipe is a set of scripts and libraries meant to be a pipeline/workflow
 system for people and legal entities to organize both complex and simple
@@ -18,7 +19,7 @@ digital labor on digital assets and requires digital workflow managment.
 Therefore, all the best practices of working in digital VFX and animation
 become relevant.  And therefore fiepipe becomes relevant.
 
-##STATUS:
+## STATUS:
 
 fiepipe is currently in pre-alpha stage.
 
@@ -27,7 +28,7 @@ I guarontee nothing.  Use it at your own risk.  And probably, if you want to use
 it, you'd do well to contact me.
 
 
-##INSTALL:
+## INSTALL:
 
 For now, there are two recomended ways to install fiepipe directly.  Either
 to just use it, or to develop it while you use it.
@@ -38,7 +39,7 @@ actually github (and not an impostor or man in the middle).  And in turn you tru
 to guarontee that I'm me.  And you in turn trust me.
 
 
-##INSTALL FOR USE:
+## INSTALL FOR USE:
 
 To just install it system wide for use, issue a command to pip which tells it to install from github.
 
@@ -54,7 +55,7 @@ As fiepipe is alpha software, you may want to install it in a python virtual env
 your system python clean.  Or to test new versions.
 
 
-##INSTALL FOR DEVELOPMENT:
+## INSTALL FOR DEVELOPMENT:
 
 Development installs typically don't originate fully from pip because you're likely forking the
 source-code yourself.  Meaning: you probably have to check it out yourself from a specific
