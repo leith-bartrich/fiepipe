@@ -106,3 +106,11 @@ The routines layer will probably import the data layer and its embedded, abstrac
 The shell layer will probably import the routines layer, the data later and its own concrete implementations of the ui routines.
 
 The user interacts via the logic in the ui layer.  It uses data to construct routines and call them.  Presumably the concrete UI routine implementations call back into the UI as neccesary.
+
+### System hooks
+
+Presumably, the system is hooked into the fiepipe system via the plugin system referenced above.
+
+More concretely: The setup.py that was used to install the package, registered a plugin call that adds a shell in the mything.py file to another shell as a callable submenu, at runtime.   Therefore, when the user runs the parent shell, the new shell has already added itself as a sub-menu command and is inherently able to be run in the UI.
+
+note: if you run "pip install -e ." in an appropriately structured python development project, it allow a developer to develop with the plugin system active on the development code.  This is how you develop/debug such a system easily.
