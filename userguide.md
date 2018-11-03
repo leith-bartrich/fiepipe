@@ -360,6 +360,7 @@ Various add commands help you add files to the root for tracking.
 Assets can be created, modified and entered from the assets subcommand of the root.  They are typically referenced by their path, but in some cases can be referenced by id.
 
 e.g. `assets enter my.asset`
+
 e.g. `assets enter chars/sally`
 
 If an asset is nested, you might not be able to use it unless its parent asset is first pulled locally.
@@ -371,7 +372,9 @@ Typically, assets use 'aspects' to be useful.  Aspects typically register themse
 Aspects usually need to be 'configured' to be used within an asset.  Usually this means they put a named .json file in the asset_configs directory of the asset.  The contents of the .json file are aspect specific.  But the existence of the file is what flags wheather and aspect is active or not in a asset.  Usually you don't have to do this manually.  The aspect command itself usually has a `configure` command and other commands to manage its configuration.
 
 e.g. `houdini configure`
+
 e.g. `houdini add_project houdini/project_01/`
+
 e.g. `houdini open h17`
 
 ### GitLab Server
