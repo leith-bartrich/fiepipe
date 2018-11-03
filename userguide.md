@@ -330,14 +330,49 @@ or:
     * out (dir)
       * delivery.out.vendor01.2018.11.02.01 (asset)
       * delivery.out.vendor01.2018.11.02.02 (asset)
+      
+#### init
+
+When you create a root, as an administrator of a container, you need to initialize the root.  You can do it two ways.  Either with `init_new`, or `init_new_split`
+
+A split root keeps its git repository on a separate volume from the worktree, wheras the simpler version of the command just keeps the repository on the same volume as the worktree.  If you have a smaller fast volume and a larger slow volume, the split version might be good for you.
+
+Generally, if someone else already created the project and the root, you probably don't want to init it.  Rather, you want to clone it from some kind of shared source.  See the gitlab section for clone commands to fetch/clone an existing root.
+
+#### checkout_from_split
+
+In the odd situation where you need to checkout an existing root from a repository on a different volume you can do so here.  One such situation might be where the repository is on an external drive you are moving between two systems.  Which is a crude but effective sneaker-net approach to shared containers.
+
+#### commit
+
+Generally, when you publish a set of changes to the project, you'll commit those changes from the root.
+
+The `commit_all` command looks at all the modified assets and the root and commits the changes.  It asks for a commmit message, which should describe the changes you made.
+
+Note: you don't have to commit the whole tree.  You can commit individual assets if you really want to.  But the commit from the root helps lay down a consistent version of the whole project tree for others to be able to reference.
+
+#### add
+
+Various add commands help you add files to the root for tracking.
 
 ### Asset
 
-Assets can be created, modified and entered from the assets subcommand of the root.
+Assets can be created, modified and entered from the assets subcommand of the root.  They are typically referenced by their path, but in some cases can be referenced by id.
 
 e.g. `assets enter my.asset`
+e.g. `assets enter chars/sally`
 
+If an asset is nested, you might not be able to use it unless its parent asset is first pulled locally.
 
+#### Aspects
+
+Typically, assets use 'aspects' to be useful.  Aspects typically register themselves as subcommands via the plugin system.  Depending on how they work they'll magically make themselves availale when relevant.
+
+Aspects usually need to be 'configured' to be used within an asset.  Usually this means they put a named .json file in the asset_configs directory of the asset.  The contents of the .json file are aspect specific.  But the existence of the file is what flags wheather and aspect is active or not in a asset.  Usually you don't have to do this manually.  The aspect command itself usually has a `configure` command and other commands to manage its configuration.
+
+e.g. `houdini configure`
+e.g. `houdini add_project houdini/project_01/`
+e.g. `houdini open h17`
 
 ### GitLab Server
 
