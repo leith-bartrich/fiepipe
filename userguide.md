@@ -266,10 +266,78 @@ A local configuration contains an id, the local storage volume to use, and a sub
 
 typically done with the command `roots enter foo`
 
+#### Roots vs Assets
+
+A root is typically not very featureful.
+
+An asset is far more featureful and configurable.
+
+It is technically possible to live entirely within the root and never create or use an asset.  But it is not recommended when possible.
+
+Roots can have deep structure within which to nest assets.
+
+Assets can nest other assets.  But when possible, it's probably best to keep assets shallow.
+
+e.g.:
+
+* root (root)
+  * char.betty (asset)
+  * char.sam (asset)
+  
+or:
+
+* root (root)
+  * chars (dir)
+    * betty (asset)
+    * sam (asset)
+  
+rather than:
+ 
+*root (root)
+  * chars (asset)
+    * betty (asset)
+    * sam (asset)
 
 
+consider the usefulness of something a bit deeper like:
+
+*root (root)
+  * char.betty (asset)
+  * char.betty.3d.maya (asset)
+  * char.betty.young (asset)
+  * char.betty.young.3d.maya (asset)
+  * char.sam (asset)
+  
+or:
+
+*root (root)
+  * char.betty (asset)
+  * char.sam (asset)
+  * action.foo.A (asset)
+  * action.foo.B (asset)
+  * shot.foo.A (asset)
+  * shot.foo.B (asset)
+  * shot.foo.C (asset)
+  * shot.foo.D (asset)
+  * shot.foo.E (asset)
+  * edit.sequence.foo (asset)
+  * comp.foo.0001 (asset)
+  * comp.foo.0002 (asset)
+  * comp.foo.0003 (asset)
+  * postoffice.vendor01 (dir)
+    * in (dir)
+      * delivery.in.vendor01.2018.11.02.01 (asset)
+    * out (dir)
+      * delivery.out.vendor01.2018.11.02.01 (asset)
+      * delivery.out.vendor01.2018.11.02.02 (asset)
 
 ### Asset
+
+Assets can be created, modified and entered from the assets subcommand of the root.
+
+e.g. `assets enter my.asset`
+
+
 
 ### GitLab Server
 
