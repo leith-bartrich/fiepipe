@@ -45,11 +45,11 @@ To just install it system wide for use, issue a command to pip which tells it to
 
 For example, the master branch from my development repository:
 
-pip install git+https://github.com/leith-bartrich/fiepipe.git@master
+`pip install git+https://github.com/leith-bartrich/fiepipe.git@master`
 
 upgrades can be acquired using pip's -U or --upgrade flag:
 
-pip install -U fiepipe
+`pip install -U fiepipe`
 
 As fiepipe is alpha software, you may want to install it in a python virtual environment instead, to keep
 your system python clean.  Or to test new versions.
@@ -66,11 +66,11 @@ Once you've checked out the code, you can use pip or the setup.py file.
 pip is often better at getting precompiled versions of dependenies from pypi.  A pip
 install for development might be:
 
-pip install -e .
+`pip install -e .`
 
 Or, running setup.py yourself might look like:
 
-python setup.py develop
+`python setup.py develop`
 
 you may need to ocassionally re-run the setup.py file in develop mode if you edit the setup.py file
 in a way that requires it.
