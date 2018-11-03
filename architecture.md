@@ -71,11 +71,38 @@ Routines may referencce or construct other routines and call them, or require th
 
 For example, we have a series of abstract routines for publishing notifications and collecting certain types of input.  Those particular routines are VERY close to the UI.  They imply UI functionality.  However, they do not actually touch UI direclty.  Their subclasses however, might. This allows higher level routines to be passed abstract UI routines in order to interact with the user, without knowing exactly what type of UI is really being used.  
 
-Routines may reach into the data layer do do what they need to do.  They 
+Routines may reach into the data layer to do what they need to do.  They may reach into/callback to the UI as well. 
 
 ### UI
 
-UI code is usually written to a specific Application toolkit of some kind.  Usually its the main-loop of the tool being run.  Eventually, the UI will reach a point where it needs to construct routines in order to call them.  UI may reach into the Data layer as
-well, in order to provide the routines the data they need to operate.
+UI code is usually written to a specific Application toolkit of some kind.  Usually its the main-loop of the tool being run.  Eventually, the UI will reach a point where it needs to construct routines in order to call them.  Hopefully the UI's logic is as shallow as it can be.  UI may reach into the Data layer as well, in order to provide the routines the data they need to operate.
 
 #### Shell
+
+Shell UI is the default most well supported UI type that fiepipe implements currenlty.  We build our shell UI on top of cmd2.
+
+## Systems
+
+Typically, we implement a system as a package.  A typical structure might be:
+
+* fiepipemypackage
+  * data
+    * mything.py
+  * routines
+    * ui
+      * custominput_ui.py
+    * mything.py
+  * shell
+    * ui
+      * custominput_ui.py
+    * mything.py
+    
+Within each mything.py file we implement the types relevant to 'mything' for that layer.
+
+Usually the data layer imports neither of the other two layers.
+
+The routines layer will probably import the data layer and its embedded, abstract ui routines.
+
+The shell layer will probably import the routines layer, the data later and its own concrete implementations of the ui routines.
+
+The user interacts via the logic in the ui layer.  It uses data to construct routines and call them.  Presumably the concrete UI routine implementations call back into the UI as neccesary.
