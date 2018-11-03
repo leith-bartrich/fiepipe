@@ -365,6 +365,19 @@ e.g. `assets enter chars/sally`
 
 If an asset is nested, you might not be able to use it unless its parent asset is first pulled locally.
 
+Assets are directories on disk.  However, they need to either be created before they're used, or pulled local before they are used.  Simialr to the need to either init or clone a root.  To create a brand new asset, one uses the `assets create_asset path/to/asset` command.  However, more often, one wants to pull down the current version of the asset from some kind of shared network storage.  See the GitLab server section to see how to `checkout_asset` or `checkout_branch` to acquire a local checkout of an asset.
+
+Once an asset is on disk, it's free to be used by any applications or tools that are available on the system.  Even those that are not
+aware of fiepipe at all.
+
+#### add
+
+Just like the root, an asset has a series of add commands with which to add files for tracking.
+
+#### can_commit
+
+The `can_commit` command will check if the current asset is set up to succesfully commit.  And further, tries to explain why not, if not.
+
 #### Aspects
 
 Typically, assets use 'aspects' to be useful.  Aspects typically register themselves as subcommands via the plugin system.  Depending on how they work they'll magically make themselves availale when relevant.
