@@ -187,12 +187,89 @@ When you are truly creating a version of the legal entity that should NOT subord
   * medical insurance information
   * tax information
   * etc
+  
+## Local site
+
+Currenlty, we're reserving some abilty to enter something other than the local site.  We may do away with this reserveration later and bring all the local site shell functionality direclty into the registered legal entity.  For now though, I just jump into it via the short command 'lssh'
 
 ## Container
 
+From within the local site, we can interact with the containers command.
+
+In VFX/Anim land, people are used to 'Projects.'  For them, a contaienr is analagous to a 'Project.'  However, a 'Project' is only one thing you might have in a container.
+
+Things a container might be:
+
+ * A Project
+ * A Department
+ * An Organizational Unit
+ 
+A compartment is meant to be subscribed to.
+
+e.g. I am an accountant and I currenlty subscribe to the following containers:
+
+  * acct_2017
+  * acct_2018
+  * acct_2019
+
+in thae same company, someone else might be a contractor and only subscribe to:
+  
+  * project_a
+  
+Projects are identified by a unique ID internally.  The short names we use locally to refer to projects can collide if need be.  Though, two projects by the same name at the same fqdn really should not exist on the system at the same time.
+
+Projects have short descriptions, in addition to their names, for convenience.
+
+Usually contaienrs are shared and hold top level configuration information.  They are meant to be updated infrequently by those in authority.
+
+To work within a container, you enter it.  Typically, a command like `cnt enter foo` will enter the foo container.
+
 ## Git Storage
+
+Within a container, we typically move on to using the Git Storage system to start working on data and with tools.  The Git Storage system consists of two primary storage entities:
+
+  * Roots
+  * Assets
+  
+Both Roots and Assets are based on git repositories. https://git-scm.com/
+
+fiepipe seeks to abstract your interactions with git.  However, we also try and maintain compatibility with git workflow.
+
+A git root is just a top level git repository and worktree.  A git asset is just a git submodule in that worktree.
+
+Typically, from the container, I use the 'roots' command to work with, and get into a root.  
 
 ### Root
 
+A root can be thought of as a storage volume.
+
+A container might have multiple roots, because it might have reason to maintain multiple volumes.  For example:
+
+  * a 'work' root, to be used by workers on workstations
+  * a 'data' root to be used by a database server
+  * a 'wiki' root to be served by a wiki web server 
+
+A root has two parts.  A shared part, and an optional local configuration.
+
+#### Shared
+
+The shared part of the root is stored in the container, which itself is shared from someone in authority.  If you administer the container, you'll need to create the root and then publish the contaienr with the new shared root information in it.  The shared root
+consists of a unique id, a name, and a description.
+
+Everyone who has been given a copy of the container, knows that the root exists.  But that doesn't mean they have access to it.
+
+#### Local configuration
+
+Usuallly, if a user actually intends to use the root, they need to configur it locally.  This can be done with the following command: `roots configure foo` where foo is the name of the root to configure.
+
+A local configuration contains an id, the local storage volume to use, and a subpath to put its worktree in.  Once you actually configure a root, you can try and enter it.
+
+typically done with the command `roots enter foo`
+
+
+
+
 ### Asset
+
+### GitLab Server
 
