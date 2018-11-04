@@ -222,7 +222,7 @@ def Update(repo, submodule, recursive=False):
     assert isinstance(submodule, git.Submodule)
     submodule.update(recursive,True,True)
     
-def CanCreateSubmodule(repo, subpath):
+def CanCreateSubmodule(repo, subpath, must_be_empty = False):
     """Returns a tupple of (repo,subpath) for the submodule repository for which
     the given subpath can be created.  This function walks recursively into
     submodules, shortening the subpath as neccesary.
@@ -259,11 +259,12 @@ def CanCreateSubmodule(repo, subpath):
         if os.path.isfile(absPath):
             #can't create a submod if its already a file.
             return (None,None)
-        if os.path.isdir(absPath):
-            #we might be okay if it's empty.
-            if not len(os.listdir(absPath)) == 0:
-                #not empty
-                return (None,None)
+        if must_be_empty:
+            if os.path.isdir(absPath):
+                #we might be okay if it's empty.
+                if not len(os.listdir(absPath)) == 0:
+                    #not empty
+                    return (None,None)
 
     #if we get here, we've passed all tests, we can create here.
     return ret
