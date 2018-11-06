@@ -123,6 +123,12 @@ class GitRootRoutines(GitRepoRoutines):
                                                   existsText,
                                                   statusText))
 
+    async def print_submodule_status_routine(self):
+        mapper = localstoragemapper(self._user)
+        repo = self._root_config.GetRepo(mapper)
+        text = repo.git.submodule("status", "--recursive")
+        await self._feedback_ui.feedback(text)
+
     async def print_status_recursive_routine(self):
         mapper = localstoragemapper(self._user)
         assets = self._root_config.GetWorkingAssets(mapper, True)
@@ -251,15 +257,15 @@ class GitRootRoutines(GitRepoRoutines):
             if id.lower() == pathorid.lower():
                 return asset
 
-            relpath = os.path.relpath(asset.GetSubmodule().abspath,work_tree_dir)
+            relpath = os.path.relpath(asset.GetSubmodule().abspath, work_tree_dir)
             norm_relpath = os.path.normpath(relpath)
             norm_pathorid = os.path.normpath(pathorid)
             if norm_relpath == norm_pathorid:
                 return asset
 
-            #path = asset.GetSubmodule().path
-            #norm_path = os.path.normpath(path)
-            #if norm_path == norm_pathorid:
+            # path = asset.GetSubmodule().path
+            # norm_path = os.path.normpath(path)
+            # if norm_path == norm_pathorid:
             #    return asset
 
         raise KeyError("Asset not found: " + pathorid)
@@ -309,7 +315,7 @@ class GitRootRoutines(GitRepoRoutines):
         repo = self.get_repo()
         can_commit, reason = self.can_commit()
         if not can_commit:
-            raise git.RepositoryDirtyError(repo=repo,message="root dirty: " + reason)
+            raise git.RepositoryDirtyError(repo=repo, message="root dirty: " + reason)
         all_assets = await self.get_all_assets(recursive=False)
         for asset in all_assets:
             asset_routines = GitAssetRoutines(self._container_id, self._root_id, asset.GetAsset().GetID(),
@@ -346,7 +352,7 @@ class GitRootRoutines(GitRepoRoutines):
 
         return True, "OK"
 
-        #return (not repo.is_dirty(index=False, working_tree=True, untracked_files=True, submodules=True))
+        # return (not repo.is_dirty(index=False, working_tree=True, untracked_files=True, submodules=True))
         # has_untracked = self.has_untracked()
         # index_dirty = self.is_index_dirty()
         # worktree_dirty = self.is_worktree_dirty()

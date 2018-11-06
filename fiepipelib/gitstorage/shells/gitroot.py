@@ -177,30 +177,6 @@ class Shell(GitRepoShell):
         log_message = self.do_coroutine(log_message_input_ui.execute("Log message"))
         self.do_coroutine(routines.commit_all_recursive(log_message))
 
-    def do_status_all(self, args):
-        routines = self.get_routines()
-        routines.load()
-
-        index_dirty = routines.is_index_dirty()
-        worktree_dirty = routines.is_worktree_dirty()
-        untracked_files = routines.has_untracked()
-
-        if untracked_files:
-            untracked_files_text = self.colorize("Untracked files","orange")
-        else:
-            untracked_files_text = self.colorize("No untracked files","green")
-
-        if index_dirty:
-            index_dirty_text = self.colorize("Index dirty", "yellow")
-        else:
-            index_dirty_text = self.colorize("Index clean", "white")
-
-        if worktree_dirty:
-            worktree_dirty_text = self.colorize("Worktree dirty", "yellow")
-        else:
-            worktree_dirty_text = self.colorize("Worktree clean", "white")
-
-        self.poutput(untracked_files_text + " : " + index_dirty_text + " : " + worktree_dirty_text)
 
 
 class GitLabServerCommand(fiepipelib.shells.AbstractShell.AbstractShell):
@@ -416,30 +392,48 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         all_working_assets = self.do_coroutine(routines.get_all_assets(True))
         for working_asset in all_working_assets:
             assert isinstance(working_asset, GitWorkingAsset)
-            asset_id = working_asset.GetAsset().GetID()
-            assset_routines = routines.get_asset_routines(asset_id)
-            assset_routines.load()
-            path = assset_routines._working_asset.GetSubmodule().path
-            dirty_index = assset_routines.is_dirty_index()
-            dirty_worktree = assset_routines.is_dirty_worktree()
-            untracked = assset_routines.has_untracked()
+            if working_asset.IsCheckedOut():
+                asset_id = working_asset.GetAsset().GetID()
+                assset_routines = routines.get_asset_routines(asset_id)
+                assset_routines.load()
+                path = assset_routines.relative_path
+                dirty_index = assset_routines.is_dirty_index()
+                dirty_worktree = assset_routines.is_dirty_worktree()
+                untracked = assset_routines.has_untracked()
 
-            if dirty_index:
-                dirty_index_text = self.colorize('Dirty Index','yellow')
+                if dirty_index:
+                    dirty_index_text = self.colorize('Dirty Index','yellow')
+                else:
+                    dirty_index_text = 'Clean Index'
+
+                if dirty_worktree:
+                    dirty_worktree_text = self.colorize('Dirty Worktree','red')
+                else:
+                    dirty_worktree_text = 'Clean Worktree'
+
+                if untracked:
+                    untracked_text = self.colorize('Untracked files','red')
+                else:
+                    untracked_text = 'All files tracked'
+
+                self.poutput(path + " - " + untracked_text + " : " + dirty_worktree_text + " : " + dirty_index_text)
             else:
-                dirty_index_text = self.colorize('Clean Index','white')
+                asset_id = working_asset.GetAsset().GetID()
+                assset_routines = routines.get_asset_routines(asset_id)
+                assset_routines.load()
+                self.poutput(assset_routines.relative_path + " - " + self.colorize("Not Checked Out",'cyan')
+)
 
-            if dirty_worktree:
-                dirty_worktree_text = self.colorize('Dirty Worktree','yellow')
-            else:
-                dirty_worktree_text = self.colorize('Clean Worktree','white')
+    def do_submodule_status(self, args):
+        """Prints the git submodule status for all submodules.
 
-            if untracked:
-                untracked_text = self.colorize('Untracked files','orange')
-            else:
-                untracked_text = self.colorize('All files tracked','green')
+        Usage: submodule_status"""
+        args = self.parse_arguments(args)
 
-            self.poutput(path + " - " + untracked_text + " : " + dirty_worktree_text + " : " + dirty_index_text)
+        routines = self._rootShell.get_routines()
+        routines.load()
+        self.do_coroutine(routines.print_submodule_status_routine())
+
 
     def do_list_uncommitable(self, args):
         args = self.parse_arguments(args)
