@@ -244,17 +244,23 @@ class GitRootRoutines(GitRepoRoutines):
         """
         mapper = localstoragemapper(self._user)
         assets = self._root_config.GetWorkingAssets(mapper, True)
+        work_tree_dir = self.get_local_repo().working_tree_dir
         for asset in assets:
 
             id = asset.GetAsset().GetID()
             if id.lower() == pathorid.lower():
                 return asset
 
-            path = asset.GetSubmodule().path
-            norm_path = os.path.normpath(path)
+            relpath = os.path.relpath(asset.GetSubmodule().abspath,work_tree_dir)
+            norm_relpath = os.path.normpath(relpath)
             norm_pathorid = os.path.normpath(pathorid)
-            if norm_path == norm_pathorid:
+            if norm_relpath == norm_pathorid:
                 return asset
+
+            #path = asset.GetSubmodule().path
+            #norm_path = os.path.normpath(path)
+            #if norm_path == norm_pathorid:
+            #    return asset
 
         raise KeyError("Asset not found: " + pathorid)
 

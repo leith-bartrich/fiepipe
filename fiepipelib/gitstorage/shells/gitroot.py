@@ -1,6 +1,9 @@
 import typing
 
 import cmd2
+import os
+import os.path
+import pathlib
 
 import fiepipelib.shells.AbstractShell
 from fiepipelib.container.shells.container_id_var_command import ContainerIDVariableCommand
@@ -270,16 +273,23 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         routines = self._rootShell.get_routines()
         routines.load()
 
+        working_tree_dir = routines.get_local_repo().working_tree_dir
+
         ret = []
         workingRoot = routines._root_config
         assets = workingRoot.GetWorkingAssets(mapper, True)
         for asset in assets:
-            id = asset.GetAsset().GetID()
-            if id.lower().startswith(text.lower()):
-                ret.append(id)
-            path = asset.GetSubmodule().path
-            if path.lower().startswith(text.lower()):
-                ret.append(path)
+            #id = asset.GetAsset().GetID()
+            #if id.lower().startswith(text.lower()):
+            #    ret.append(id)
+
+            relpath = os.path.relpath(asset.GetSubmodule().abspath,working_tree_dir)
+            if relpath.lower().startswith(text.lower()):
+                ret.append(relpath)
+
+            #path = asset.GetSubmodule().path
+            # if path.lower().startswith(text.lower()):
+            #     ret.append(path)
         return ret
 
     complete_delete = asset_completion
@@ -348,7 +358,7 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         routines.load()
         asset = routines.get_asset(args[0])
 
-        path = asset.GetSubmodule().path
+        #path = asset.GetSubmodule().path
         shell = GitAssetShell(routines.container.GetID(), routines.root.GetID(), asset.GetAsset().GetID())
         # shell = fiepipelib.shells.gitasset.Shell(asset, path, self._rootShell._container,
         #                                          self._rootShell._containerConfig, self._rootShell._GetRoot(),
@@ -366,9 +376,13 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         """
         routines = self._rootShell.get_routines()
         routines.load()
+        work_tree_dir = routines.get_local_repo().working_tree_dir
         assets = self.do_coroutine(routines.get_all_assets())
         for asset in assets:
-            self.poutput(asset.GetSubmodule().path)
+            asset_dir = asset.GetSubmodule().abspath
+            relpath = os.path.relpath(asset_dir,work_tree_dir)
+            self.poutput(relpath)
+            #self.poutput(asset.GetSubmodule().path)
 
     def do_clear_from_worktree(self, args):
         """Removes (clears) the worktree for the given asset branch.

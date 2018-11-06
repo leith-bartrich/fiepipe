@@ -91,10 +91,23 @@ class LocalRootConfiguration(object):
         repo = self.GetRepo(mapper)
         assert isinstance(repo, git.Repo)
         ret = []
-        for submodule in repo.iter_submodules():
+        for submodule in repo.submodules:
+        #for submodule in repo.iter_submodules():
             asset = GitWorkingAsset(submodule)
             ret.append(asset)
+            if recursive:
+                ret.extend(self._get_all_subassets(asset))
         return ret
+
+    def _get_all_subassets(self, working_asset:GitWorkingAsset) -> typing.List[GitWorkingAsset]:
+        ret = []
+        for sub_asset in working_asset.GetSubWorkingAssets():
+            if sub_asset.IsCheckedOut():
+                ret.extend(self._get_all_subassets(sub_asset))
+            ret.append(sub_asset)
+        return ret
+
+
 
 
 class LocalRootConfigurationsComponent(AbstractNamedItemListComponent[LocalRootConfiguration]):

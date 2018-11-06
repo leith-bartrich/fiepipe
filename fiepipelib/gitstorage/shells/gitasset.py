@@ -41,6 +41,8 @@ class Shell(GitRepoShell):
         routines.load()
         fqdn = routines.container.GetFQDN()
         container_name = routines.container.GetShortName()
-        subpath = routines._working_asset.GetSubmodule().path
+        relpath = routines.relative_path
+        relpath = relpath.replace("\\","/")
+        #subpath = routines._working_asset.GetSubmodule().path
         root_name = routines._root.GetName()
-        return self.prompt_separator.join(['fiepipe', fqdn, container_name, root_name, subpath])
+        return self.prompt_separator.join(['fiepipe', fqdn, container_name, root_name, relpath])

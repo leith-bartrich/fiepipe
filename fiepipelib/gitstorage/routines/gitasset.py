@@ -40,6 +40,7 @@ class GitAssetRoutines(GitRepoRoutines):
     _root_config: LocalRootConfiguration
     _asset: GitAsset
     _working_asset: GitWorkingAsset
+    _relative_path: str = None
 
     def get_repo(self) -> git.Repo:
         return self._working_asset.GetRepo()
@@ -62,6 +63,8 @@ class GitAssetRoutines(GitRepoRoutines):
         for workingAsset in self._root_config.GetWorkingAssets(mapper, True):
             if workingAsset.GetAsset().GetID() == self._asset_id:
                 self._working_asset = workingAsset
+        working_tree_dir = self._root_config.GetRepo(mapper).working_tree_dir
+        self._relative_path = os.path.relpath(self.working_asset.GetSubmodule().abspath, working_tree_dir)
 
     @property
     def container(self):
@@ -197,3 +200,7 @@ class GitAssetRoutines(GitRepoRoutines):
     @property
     def working_asset(self):
         return self._working_asset
+
+    @property
+    def relative_path(self):
+        return self._relative_path
