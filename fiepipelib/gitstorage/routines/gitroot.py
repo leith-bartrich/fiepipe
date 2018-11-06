@@ -309,7 +309,7 @@ class GitRootRoutines(GitRepoRoutines):
         repo = self.get_repo()
         can_commit, reason = self.can_commit()
         if not can_commit:
-            raise git.RepositoryDirtyError("root dirty: " + reason)
+            raise git.RepositoryDirtyError(repo=repo,message="root dirty: " + reason)
         all_assets = await self.get_all_assets(recursive=False)
         for asset in all_assets:
             asset_routines = GitAssetRoutines(self._container_id, self._root_id, asset.GetAsset().GetID(),
