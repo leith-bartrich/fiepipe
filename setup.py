@@ -32,7 +32,7 @@ install_requires=["rpyc","plumbum","paramiko","cryptography","GitPython","cmd2",
             'fiepipe = fiepipelib.gitstorage.routines.lfs_tracked_patterns:get_patterns',
         ],
     },
-    long_description=read('README.txt'),
+    long_description=read('README.md'),
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         ],

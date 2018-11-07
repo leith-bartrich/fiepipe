@@ -26,7 +26,7 @@ def Track(repo: git.Repo, patterns):
     ret = repo.git.lfs(track_args)
     rm_args = ["--cached", "--ignore-unmatch"]
     rm_args.extend(quoted)
-    ret = ret + repo.git.rm(rm_args)
+    #ret = ret + repo.git.rm(rm_args)
     # for pattern in patterns:
     # we always do this just incase.
     #    ret = ret + repo.git.rm("--cached", "--ignore-unmatch", pattern)

@@ -1,5 +1,6 @@
 import abc
 import typing
+import git
 
 from fiepipelib.assetaspect.data.config import AspectConfiguration
 from fieui.FeedbackUI import AbstractFeedbackUI
@@ -22,6 +23,8 @@ class AspectConfigurationRoutines(typing.Generic[T]):
 
     def commit(self):
         self.get_configuration().commit()
+        repo = git.Repo(self.get_configuration().asset_path)
+        repo.git.add(self.get_configuration().get_config_path())
 
 
     @abc.abstractmethod
@@ -41,4 +44,6 @@ class AspectConfigurationRoutines(typing.Generic[T]):
             configuration.load()
         await self.reconfigure()
         configuration.commit()
+        repo = git.Repo(configuration.asset_path)
+        repo.git.add(configuration.get_config_path())
 

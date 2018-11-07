@@ -47,3 +47,7 @@ class AspectConfiguration(abc.ABC):
     def to_json_data(self) -> typing.Dict:
         """From this configuration, create a data dictionary and return it."""
         raise NotImplementedError()
+
+    @property
+    def asset_path(self):
+        return self._asset_path
