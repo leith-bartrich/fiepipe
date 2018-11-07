@@ -41,6 +41,7 @@ class GitAssetRoutines(GitRepoRoutines):
     _asset: GitAsset
     _working_asset: GitWorkingAsset
     _relative_path: str = None
+    _abs_path: str = None
 
     def get_repo(self) -> git.Repo:
         return self._working_asset.GetRepo()
@@ -64,7 +65,8 @@ class GitAssetRoutines(GitRepoRoutines):
             if workingAsset.GetAsset().GetID() == self._asset_id:
                 self._working_asset = workingAsset
         working_tree_dir = self._root_config.GetRepo(mapper).working_tree_dir
-        self._relative_path = os.path.relpath(self.working_asset.GetSubmodule().abspath, working_tree_dir)
+        self._abs_path = self._working_asset.GetSubmodule().abspath
+        self._relative_path = os.path.relpath(self._abs_path, working_tree_dir)
 
     @property
     def container(self):
@@ -112,7 +114,6 @@ class GitAssetRoutines(GitRepoRoutines):
             await self._feedback_ui.feedback("Commiting: " + self._working_asset.GetSubmodule().path)
             log = repo.git.commit("-m" + shlex.quote(log_message))
             await self._feedback_ui.output(log)
-
 
     def get_config_names(self) -> typing.List[str]:
         """Returns names of config files in the asset.  No file extensions."""
@@ -204,3 +205,8 @@ class GitAssetRoutines(GitRepoRoutines):
     @property
     def relative_path(self):
         return self._relative_path
+
+    @property
+    def abs_path(self):
+        return self._abs_path
+

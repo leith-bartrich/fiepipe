@@ -3,7 +3,7 @@ import typing
 
 from fiepipelib.assetaspect.data.config import AspectConfiguration
 from fiepipelib.assetaspect.routines.config import AspectConfigurationRoutines
-from fiepipelib.gitstorage.shells.gitasset import Shell as GitAssetShell
+from fiepipelib.gitstorage.shells.gitasset import Shell as GitAssetShell, AvailableAspect
 from fiepipelib.shells.AbstractShell import AbstractShell
 
 T = typing.TypeVar("T", bound=AspectConfiguration)
@@ -35,7 +35,7 @@ class ConfigCommand(AbstractShell, typing.Generic[T]):
 
     def get_prompt_text(self) -> str:
         return self.prompt_separator.join([self._asset_shell.get_prompt_text(),
-                                          self.get_configuration_data().get_config_name()])
+                                           self.get_configuration_data().get_config_name()])
 
     def do_is_configured(self, args):
         """Prints indication as to if the asset has this configuration or not.

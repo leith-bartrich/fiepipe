@@ -6,9 +6,9 @@ import git
 
 import fiepipelib.shells
 from fiepipelib.gitstorage.routines.gitrepo import GitRepoRoutines
+from fiepipelib.shells.AbstractShell import AbstractShell
 
-
-class GitRepoShell(fiepipelib.shells.AbstractShell.AbstractShell, abc.ABC):
+class GitRepoShell(AbstractShell, abc.ABC):
 
 
     @abc.abstractmethod
