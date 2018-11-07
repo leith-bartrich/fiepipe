@@ -46,7 +46,7 @@ class Shell(GitRepoShell):
         routines.load()
 
         os.chdir(routines._working_asset.GetSubmodule().abspath)
-        self.do_coroutine(routines.update_lfs_track_patterns())
+        #self.do_coroutine(routines.update_lfs_track_patterns())
 
     def get_routines(self) -> GitAssetRoutines:
         return GitAssetRoutines(self._container_id_var.get_value(), self._root_id_var.get_value(),
