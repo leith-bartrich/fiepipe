@@ -43,6 +43,10 @@ The shell ui system is largely built around an embedded plugin system, for examp
 
 It's worth pointing out, this implies that fiepipe and its plugins will use setup.py and pip for all install/deployment.  Even at development time. 
 
+Be careful you understand what the scope of the changes you make, is when you are implementing a plugin callback.
+
+e.g. Most shell modifications are to the shell's class, not its instance.  Therefore, you can't discriminate based on fqdn, for example.
+
 ## Layers
 
 We use a layer based system to develop fiepipe.  We do not use a traditional system such as MVC or MVVM or ECS.  However we are informed by these various evolving and traditional layered approaches.
