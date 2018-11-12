@@ -14,6 +14,13 @@ class AbstractSimpleApplicationInstall(object):
     def get_path(self) -> str:
         return self._path
 
+    @abc.abstractmethod
+    def validate(self, path:str) -> (bool,str):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def path_instructions(self) -> str:
+        raise NotImplementedError()
 
 T = typing.TypeVar("T", bound=AbstractSimpleApplicationInstall)
 

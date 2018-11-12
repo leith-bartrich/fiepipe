@@ -65,4 +65,17 @@ class ConfigCommand(AbstractShell, typing.Generic[T]):
         if config_data.exists():
             config_data.delete()
 
+    def do_update_git_meta(self, args):
+        """Updates git meta-data for this aspect.  Meaning it updates .gitignore and lfs tracking
+        based on the configuration.
+
+        Usually this is done automatically every time the config is commited (changed).  However,
+        this will force and update regardless.  Code/plugin changes might be a good example situation where
+        this command is needed.
+
+        Usage: udpate_git_meta"""
+        routines = self.get_configuration_routines()
+        routines.load()
+        routines.update_git_meta()
+
 

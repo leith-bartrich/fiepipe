@@ -11,12 +11,14 @@ def InstallLFSRepo(repo: git.Repo):
     repo.git.lfs("install", "--local")
 
 
-def Track(repo: git.Repo, patterns):
+def Track(repo: git.Repo, patterns:typing.List[str]):
     """@param patterns:  A list of patterns e.g. ["*.foo","bar/*.psd"]
     @param readd: If true, existing git tracked files that meet the pattern are removed from normal
     git tracking and re-added as lfs tracked.  Note this doesn't affect history.  Only current status
     and subsequent commits.
     """
+    if len(patterns) == 0:
+        return
     quoted = []
     for pattern in patterns:
         quoted.append("\"" + pattern + "\"")
