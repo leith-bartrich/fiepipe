@@ -8,6 +8,7 @@ from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
 from fiepipelib.gitstorage.shells.gitrepo import GitRepoShell
 from fiepipelib.gitstorage.shells.vars.asset_id import AssetIDVarCommand
 from fiepipelib.gitstorage.shells.vars.root_id import RootIDVarCommand
+from fiepipelib.gitstorage.shells.ui.log_message_input_ui import LogMessageInputUI
 
 
 class AvailableAspect(abc.ABC):
@@ -67,5 +68,22 @@ class Shell(GitRepoShell):
         # subpath = routines._working_asset.GetSubmodule().path
         root_name = routines._root.GetName()
         return self.prompt_separator.join(['fiepipe', fqdn, container_name, root_name, relpath])
+
+    def do_commit(self, args):
+        """Commmit this asset and its sub-assets
+
+        Usage: commit
+        """
+
+        args = self.parse_arguments(args)
+
+        routines = self.get_routines()
+        routines.load()
+
+        log_message_ui = LogMessageInputUI(self)
+
+        log_message = self.do_coroutine(log_message_ui.execute("Log message"))
+        self.do_coroutine(routines.commit_recursive(log_message))
+
 
 

@@ -1,26 +1,25 @@
+import os
+import os.path
 import typing
 
 import cmd2
-import os
-import os.path
-import pathlib
 
 import fiepipelib.shells.AbstractShell
 from fiepipelib.container.shells.container_id_var_command import ContainerIDVariableCommand
 from fiepipelib.gitlabserver.data.gitlab_server import GitLabServerManager
 from fiepipelib.gitlabserver.routines.gitlabserver import GitLabServerRoutines
+from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
 from fiepipelib.gitstorage.data.localstoragemapper import localstoragemapper
 from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
 from fiepipelib.gitstorage.routines.gitlab_server import GitLabFQDNGitRootRoutines
 from fiepipelib.gitstorage.routines.gitroot import GitRootRoutines
 from fiepipelib.gitstorage.shells.gitasset import Shell as GitAssetShell
+from fiepipelib.gitstorage.shells.gitrepo import GitRepoShell
 from fiepipelib.gitstorage.shells.gitroot_gitlab_server import Shell as GitLabGitRootShell
 from fiepipelib.gitstorage.shells.ui.log_message_input_ui import LogMessageInputUI
 from fiepipelib.gitstorage.shells.vars.root_id import RootIDVarCommand
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
-from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
-from fiepipelib.gitstorage.shells.gitrepo import GitRepoShell
 
 
 class Shell(GitRepoShell):

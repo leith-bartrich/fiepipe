@@ -144,14 +144,6 @@ class GitRepoShell(AbstractShell, abc.ABC):
         self.do_add_all_untracked(args)
         self.do_add_all_modified(args)
 
-    def do_update_lfs_tracked_files(self, args):
-        """Updated lfs tracked files for this asset.
-        Usage: update_lfs_tracked_files
-        """
-        routines = self.get_routines()
-        routines.load()
-        self.do_coroutine(routines.update_lfs_track_patterns())
-
     def do_can_commit(self, args):
         """Checks if this GIT Storage Repo can commit."""
         routines = self.get_routines()
