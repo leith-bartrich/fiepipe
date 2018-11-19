@@ -221,6 +221,10 @@ class GitLabGitAssetRoutines(GitLabGitStorageRoutines, ABC):
             # then ourselves.
             await self.push(feedback_ui=feedback_ui)
 
+    @property
+    def working_asset(self):
+        return self._working_asset
+
 
 class GitLabFQDNGitAssetRoutines(GitLabGitAssetRoutines):
     _fqdn: str = None

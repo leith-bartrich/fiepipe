@@ -309,7 +309,10 @@ class GitRootRoutines(GitRepoRoutines):
 
         newid = NewAssetID()
         await self._feedback_ui.output("Creating new submodule for asset.")
-        CreateFromSubDirectory(creationRepo, creationSubPath, newid, url=newid + ".git")
+        asset_repo = CreateFromSubDirectory(creationRepo, creationSubPath, newid, url=newid + ".git")
+        await self._feedback_ui.output("Installing LFS in asset.")
+        InstallLFSRepo(asset_repo)
+
 
     async def commit_all_recursive(self, log_message: str):
         repo = self.get_repo()

@@ -1,3 +1,5 @@
+import os
+import os.path
 import typing
 
 from fiepipelib.gitstorage.data.localstoragemapper import get_local_storage_mapper
@@ -131,6 +133,7 @@ class Shell(AbstractShell):
             assert isinstance(asset_routines, GitLabGitAssetRoutines)
             self.do_coroutine(asset_routines.update_branch(latest=True, init=False, feedback_ui=self.get_feedback_ui()))
 
+
     def do_push_existing(self, args):
         """Does a push of all current assets and then the root.  Children go before parents.
 
@@ -144,28 +147,72 @@ class Shell(AbstractShell):
 
     def asset_complete(self, text, line, begidx, endidx):
         routines = self.get_routines()
+
+        repo_path = routines.get_local_repo_path()
         all_asset_routines = routines.get_all_asset_routines(recursive=True)
         ret = []
         for asset_routines in all_asset_routines:
             assert isinstance(asset_routines, GitLabGitAssetRoutines)
-            subpath = asset_routines._working_asset.GetSubmodule().path
-            if subpath.startswith(text):
-                ret.append(subpath)
-            id = asset_routines._working_asset.GetAsset().GetID()
-            if id.startswith(text):
-                ret.append(id)
+            abspath = asset_routines.working_asset.GetSubmodule().abspath
+            relpath = os.path.relpath(abspath, repo_path)
+            if relpath.startswith(text):
+                ret.append(relpath)
         return ret
 
-    def get_asset_routines(self, pathorid: str) -> GitLabGitAssetRoutines:
+    def get_asset_routines(self, relpath: str) -> GitLabGitAssetRoutines:
         routines = self.get_routines()
+        root_path = routines.get_local_repo_path()
         all_asset_routines = routines.get_all_asset_routines(recursive=True)
         for routines in all_asset_routines:
             assert isinstance(routines, GitLabGitAssetRoutines)
-            if routines._working_asset.GetSubmodule().path == pathorid:
+            abspath = routines.working_asset.GetSubmodule().abspath
+            asset_relpath = os.path.relpath(abspath, root_path)
+            if relpath == asset_relpath:
                 return routines
-            if routines._working_asset.GetAsset().GetID() == pathorid:
-                return routines
-        raise LookupError(pathorid)
+        raise LookupError(relpath)
+
+    complete_push_branch = asset_complete
+
+    def do_push_branch(self, args):
+        """Does a push of an asset branch starting with the specified asset
+         and going all the way to the leaf level.
+
+         Usage: push_branch [asset_path]
+
+         asset_path:  The path to the asset to start pushing from."""
+
+        args = self.parse_arguments(args)
+        if len(args) == 0:
+            self.perror("No asset_path given.")
+            return
+
+        asset_routines = self.get_asset_routines(args[0])
+
+        self.do_coroutine(asset_routines.push_branch(self.get_feedback_ui()))
+
+    complete_pull_branch_latest = asset_complete
+
+    def do_pull_branch_latest(self, args):
+        """Does an update/pull to the latest tree of all assets in a branch,
+        skipping those not checked out.
+        The branch that this checks out is bleeding edge latest and greatest, and parts might
+        be newer than when the last commit of their parents was made.
+
+        Useful to get everyone's latest versions before updating your part, without pulling the deeper
+        parts of the tree you don't need.
+
+        Usage: pull_branch_latest [asset_path]
+
+        asset_path: The relative path to the asset branch to pull.
+        """
+        args = self.parse_arguments(args)
+        if len(args) == 0:
+            self.perror("No asset_path given.")
+            return
+
+        asset_routines = self.get_asset_routines(args[0])
+        self.do_coroutine(asset_routines.update_branch(latest=True, init=False, feedback_ui=self.get_feedback_ui()))
+
 
     complete_checkout_asset = asset_complete
 
