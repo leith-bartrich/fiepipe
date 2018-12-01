@@ -38,6 +38,7 @@ class GitAssetRoutines(GitRepoRoutines):
     _container_config: LocalContainerConfiguration = None
     _root: GitRoot
     _root_config: LocalRootConfiguration
+    _root_working_tree_path: str = None
     _asset: GitAsset
     _working_asset: GitWorkingAsset
     _relative_path: str = None
@@ -64,9 +65,9 @@ class GitAssetRoutines(GitRepoRoutines):
         for workingAsset in self._root_config.GetWorkingAssets(mapper, True):
             if workingAsset.GetAsset().GetID() == self._asset_id:
                 self._working_asset = workingAsset
-        working_tree_dir = self._root_config.GetRepo(mapper).working_tree_dir
+        self._root_working_tree_path = self._root_config.GetRepo(mapper).working_tree_dir
         self._abs_path = self._working_asset.GetSubmodule().abspath
-        self._relative_path = os.path.relpath(self._abs_path, working_tree_dir)
+        self._relative_path = os.path.relpath(self._abs_path, self._root_working_tree_path)
 
     @property
     def container(self):
@@ -209,4 +210,16 @@ class GitAssetRoutines(GitRepoRoutines):
     @property
     def abs_path(self):
         return self._abs_path
+
+    @property
+    def root(self):
+        return self._root
+
+    @property
+    def root_config(self):
+        return self._root_config
+
+    @property
+    def root_working_tree_path(self):
+        return self._root_working_tree_path
 

@@ -16,7 +16,7 @@ setup(
     py_modules=["fiepipe", "fiepipestateserver"],
     packages = find_packages(),
     
-install_requires=["rpyc","plumbum","paramiko","cryptography","GitPython","cmd2","cmd2-submenu>=0.3.0","bcrypt","pycryptodome","pyreadline","keyboard","cookiecutter"],
+install_requires=["rpyc","plumbum","paramiko","cryptography","GitPython","cmd2","cmd2-submenu>=0.3.0","bcrypt","pycryptodome","pyreadline","keyboard","cookiecutter","watchdog>=0.9.0"],
     entry_points={
         'fiepipe.plugin.shell.gitlabserver.shell.v1' : [
             'container = fiepipelib.container.shells.gitlabserver:FIEPipeShellPlugin',
@@ -27,6 +27,7 @@ install_requires=["rpyc","plumbum","paramiko","cryptography","GitPython","cmd2",
             #'fiepipestateserver = fiepipestateserver:main',
             'fiepipe_gitlab = fiepipelib.gitlabserver.shell.manager:main',
             'fiepipe_containers = fiepipelib.container.shells.manager:main',
+            'fiepipe_watchfolder = fiepipelib.watchfolder.shell.watchfolder:main',
         ],
         'fiepipe.plugin.gitstorage.lfs.patterns' : [
             'fiepipe = fiepipelib.gitstorage.routines.lfs_tracked_patterns:get_patterns',
