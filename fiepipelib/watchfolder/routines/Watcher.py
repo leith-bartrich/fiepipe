@@ -1,9 +1,10 @@
-import pkg_resources
-import asyncio
+import os
+import os.path
 
+import pkg_resources
+from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
-from fiepipelib.watchfolder.data.root import RootDirEventHandler
 from fieui.FeedbackUI import AbstractFeedbackUI
 
 
@@ -12,7 +13,6 @@ class WatcherRoutines(object):
 
     _path: str = None
     _observer: Observer = None
-    _root_handler: RootDirEventHandler = None
 
     def __init__(self, path: str, feedback_ui: AbstractFeedbackUI):
         self._path = path
@@ -20,22 +20,23 @@ class WatcherRoutines(object):
 
     async def start_watching_routine(self):
         self._observer = Observer()
-        self._root_handler = RootDirEventHandler()
-        await self._feedback_ui.feedback("Watch root path: " + self._path)
-        self._observer.schedule(self._root_handler, self._path, False)
 
         await self._feedback_ui.feedback("Loading plugins...")
         entrypoints = pkg_resources.iter_entry_points("fiepipe.plugin.watchfolder.watch")
         for entrypoint in entrypoints:
             await self._feedback_ui.feedback("plugin: " + entrypoint.name)
             method = entrypoint.load()
-            handler, sub_path, recurse = method()
-            watch_path = os.path.join(self._path, sub_path)
-            await self._feedback_ui.feedback("plugin: " + entrypoint.name + " path: " + watch_path)
-            self._observer.schedule(handler, watch_path, recurse)
+            method(self)
         await self._feedback_ui.feedback("Plugins loaded.")
         await self._feedback_ui.feedback("Starting...")
         self._observer.start()
+
+    def schedule_handler(self, handler: FileSystemEventHandler, subpath: str, recurse: bool):
+        watch_path = os.path.join(self._path, subpath)
+        return self._observer.schedule(handler, watch_path, recurse)
+
+    def unschedule_handler(self, observed_watch):
+        self._observer.unschedule(observed_watch)
 
     def stop_watching(self):
         self._observer.stop()

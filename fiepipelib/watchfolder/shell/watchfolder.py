@@ -5,7 +5,7 @@ import typing
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fiepipelib.shells.AbstractShell import AbstractShell
-from fiepipelib.watchfolder.routines.root import WatcherRoutines, start_watching_routine
+from fiepipelib.watchfolder.routines.Watcher import WatcherRoutines, start_watching_routine
 
 
 class WatchFolderShellApplication(AbstractShell):
