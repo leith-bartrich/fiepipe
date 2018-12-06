@@ -4,31 +4,30 @@ import os
 from watchdog.events import FileSystemEventHandler, FileMovedEvent, DirMovedEvent, FileCreatedEvent, DirCreatedEvent, \
     DirDeletedEvent, FileDeletedEvent, FileModifiedEvent, DirModifiedEvent
 
-from fiepipelib.watchfolder.routines.Watcher import WatcherRoutines
+from fiepipelib.watchfolder.routines.aspect_config import WatcherRoutines
 
 
 class FolderRoutines(FileSystemEventHandler, abc.ABC):
 
     _watcher: WatcherRoutines = None
-    _subpath: str = None
+    _path: str = None
     _observed_watch = None
 
     @property
-    def subpath(self):
-        return self._subpath
+    def path(self):
+        return self._path
 
     @property
     def watcher(self):
         return self._watcher
 
-    def __init__(self, watcher: WatcherRoutines, subpath: str):
+    def __init__(self, watcher: WatcherRoutines, path: str):
         self._watcher = watcher
-        self._subpath = subpath
+        self._path = path
 
-        dir_path = os.path.join(watcher.path,subpath)
-        os.makedirs(dir_path,exist_ok=True)
+        os.makedirs(path,exist_ok=True)
 
-        self._observed_watch = self._watcher.schedule_handler(self, subpath, False)
+        self._observed_watch = self._watcher.schedule_handler(self, path, False)
         self.emit_existing_events()
         self.on_after_scheduled()
 
@@ -39,10 +38,9 @@ class FolderRoutines(FileSystemEventHandler, abc.ABC):
         self.watcher.unschedule_handler(self._observed_watch)
 
     def emit_existing_events(self):
-        path = os.path.join(self.watcher.path, self.subpath)
-        contents = os.listdir(path)
+        contents = os.listdir(self._path)
         for content in contents:
-            p = os.path.join(path, content)
+            p = os.path.join(self._path, content)
             if os.path.isdir(p):
                 self.on_existing_dir(p)
             else:

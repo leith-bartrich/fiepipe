@@ -32,6 +32,10 @@ install_requires=["rpyc","plumbum","paramiko","cryptography","GitPython","cmd2",
         'fiepipe.plugin.gitstorage.lfs.patterns' : [
             'fiepipe = fiepipelib.gitstorage.routines.lfs_tracked_patterns:get_patterns',
         ],
+        'fiepipe.plugin.shell.gitasset.v1': [
+            'watchfolders = fiepipelib.watchfolder.shell.watchfolder:git_asset_shell_plugin',
+        ],
+
     },
     long_description=read('README.md'),
     classifiers=[

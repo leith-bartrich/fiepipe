@@ -16,7 +16,7 @@ class abstractlauncher(object):
     def launch(self, echo = False):
         if echo:
             print (" ".join(self.GetArgs()))
-        subprocess.Popen(self.GetArgs(),env=self.GetEnv(),creationflags=subprocess.CREATE_NEW_CONSOLE)
+        return subprocess.Popen(self.GetArgs(),env=self.GetEnv(),creationflags=subprocess.CREATE_NEW_CONSOLE)
         
 
 

@@ -49,6 +49,7 @@ class Shell(GitRepoShell):
         os.chdir(routines._working_asset.GetSubmodule().abspath)
         #self.do_coroutine(routines.update_lfs_track_patterns())
 
+
     def get_routines(self) -> GitAssetRoutines:
         return GitAssetRoutines(self._container_id_var.get_value(), self._root_id_var.get_value(),
                                 self._asset_id_var.get_value(), feedback_ui=self.get_feedback_ui())

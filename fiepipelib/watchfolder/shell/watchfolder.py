@@ -2,67 +2,40 @@ import os
 import os.path
 import typing
 
+from fiepipelib.assetaspect.shell.config import ConfigCommand
+from fiepipelib.gitstorage.shells.gitasset import Shell as GitAssetShell
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
-from fiepipelib.shells.AbstractShell import AbstractShell
-from fiepipelib.watchfolder.routines.Watcher import WatcherRoutines, start_watching_routine
+from fiepipelib.watchfolder.data.aspect_config import WatchFolderConfig
+from fiepipelib.watchfolder.routines.aspect_config import WatcherRoutines
 
 
-class WatchFolderShellApplication(AbstractShell):
-    _watchers: typing.Dict[str, WatcherRoutines]
+class WatchFolderShellApplication(ConfigCommand[WatchFolderConfig]):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, asset_shell: GitAssetShell):
         self._watchers = {}
+        super().__init__(asset_shell)
+
+    def get_configuration_data(self) -> WatchFolderConfig:
+        asset_routines = self.get_asset_shell().get_routines()
+        asset_routines.load()
+        asset_path = asset_routines.abs_path
+        return WatchFolderConfig(asset_path)
+
+    def get_configuration_routines(self) -> WatcherRoutines:
+        return WatcherRoutines(self.get_configuration_data(), self.get_asset_shell().get_routines(),
+                               self.get_feedback_ui())
 
     def get_plugin_names_v1(self) -> typing.List[str]:
         ret = super(WatchFolderShellApplication, self).get_plugin_names_v1()
-        ret.append("watchfolder_shellapplication")
+        ret.append("watchfolder.command")
         return ret
 
     def get_prompt_text(self) -> str:
-        return "watchfolder"
+        return self.prompt_separator.join([self.get_asset_shell().get_prompt_text(), "watchfolder"])
 
     __icloud_watcher_name = "iCloudDrive"
 
-    def running_watchers_complete(self, text, line, begidx, endidx):
-        ret = []
-        for wname in self._watchers.keys():
-            if wname.lower().startswith(text.lower()):
-                ret.append(wname)
-        return ret
-
-    complete_stop_watch = running_watchers_complete
-
-    def do_stop_watch(self, args):
-        """Stops the given watcher folder
-
-        Usage: stop_watch [name]
-
-        name:  The name of the watch to stop
-        """
-        args = self.parse_arguments(args)
-        name = args[0]
-
-        if len(args) < 1:
-            self.perror("No name givne.")
-            return
-
-        if name not in self._watchers.keys():
-            self.perror("No such watcher.")
-            return
-
-        watcher = self._watchers.pop(name)
-        watcher.stop_watching()
-
-    def do_list_watches(self, args):
-        """Lists the running watchers
-
-        Usage list_watches"""
-        args = self.parse_arguments(args)
-
-        for (name, watcher) in self._watchers.items():
-            self.poutput(name + " : " + watcher.path)
 
     def do_start_icloud(self, args):
         """Starts a watchfolder in the user's iCloud directory
@@ -70,9 +43,6 @@ class WatchFolderShellApplication(AbstractShell):
         Usage: start_icloud
         """
 
-        if self.__icloud_watcher_name in self._watchers.keys():
-            self.perror(self.__icloud_watcher_name + " watcher already running.")
-            return
 
         args = self.parse_arguments(args)
 
@@ -91,8 +61,15 @@ class WatchFolderShellApplication(AbstractShell):
             self.perror("Not a directory: " + icloud_dir)
             return
 
-        watcher = self.do_coroutine(start_watching_routine(icloud_dir, self.get_feedback_ui()))
-        self._watchers[self.__icloud_watcher_name] = watcher
+        routines = self.get_configuration_routines()
+        routines.load()
+        asset_routines = self.get_asset_shell().get_routines()
+        asset_routines.load()
+
+        watchfolder_routines = WatcherRoutines(routines.get_configuration(), asset_routines, self.get_feedback_ui())
+        self.do_coroutine(watchfolder_routines.start_watching_routine(asset_routines.abs_path, icloud_dir))
+        self.do_coroutine(watchfolder_routines.process_queue())
+
 
     __documents_watcher_name = "documents"
 
@@ -102,10 +79,6 @@ class WatchFolderShellApplication(AbstractShell):
         Usage: start_documents
         """
         args = self.parse_arguments(args)
-
-        if self.__documents_watcher_name in self._watchers.keys():
-            self.perror(self.__documents_watcher_name + " watcher already running.")
-            return
 
         plat = get_local_platform_routines()
         user = LocalUserRoutines(plat)
@@ -122,8 +95,14 @@ class WatchFolderShellApplication(AbstractShell):
             self.perror("Not a directory: " + docs_dir)
             return
 
-        watcher = self.do_coroutine(start_watching_routine(docs_dir, self.get_feedback_ui()))
-        self._watchers[self.__documents_watcher_name] = watcher
+        routines = self.get_configuration_routines()
+        routines.load()
+        asset_routines = self.get_asset_shell().get_routines()
+        asset_routines.load()
+
+        watchfolder_routines = WatcherRoutines(routines.get_configuration(), asset_routines, self.get_feedback_ui())
+        self.do_coroutine(watchfolder_routines.start_watching_routine(asset_routines.abs_path, docs_dir))
+        self.do_coroutine(watchfolder_routines.process_queue())
 
     def do_start(self, args):
         """Starts a named watchfolder in a given directory
@@ -145,10 +124,6 @@ class WatchFolderShellApplication(AbstractShell):
         name = args[0]
         path = args[1]
 
-        for watcher in self._watchers.values():
-            if os.path.samefile(watcher.path, path):
-                self.perror("Path already being watched.")
-                return
 
         if name in self._watchers.keys():
             self.perror("Name already exists.")
@@ -162,16 +137,15 @@ class WatchFolderShellApplication(AbstractShell):
             self.perror("Not a directory: " + path)
             return
 
-        watcher = self.do_coroutine(start_watching_routine(path, self.get_feedback_ui()))
-        self._watchers[name] = watcher
+        routines = self.get_configuration_routines()
+        routines.load()
+        asset_routines = self.get_asset_shell().get_routines()
+        asset_routines.load()
+        watchfolder_routines = WatcherRoutines(routines.get_configuration(), asset_routines, self.get_feedback_ui())
+        self.do_coroutine(watchfolder_routines.start_watching_routine(asset_routines.abs_path, path))
+        self.do_coroutine(watchfolder_routines.process_queue())
 
 
-def main():
-    # p = get_local_platform_routines
-    # u = LocalUserRoutines(p)
-    s = WatchFolderShellApplication()
-    s.cmdloop()
-
-
-if __name__ == "__main__":
-    main()
+def git_asset_shell_plugin(shell: GitAssetShell):
+    command = WatchFolderShellApplication(shell)
+    shell.add_submenu(command, "watchfolder", [])
