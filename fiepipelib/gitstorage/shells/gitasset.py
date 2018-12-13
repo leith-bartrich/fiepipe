@@ -2,6 +2,7 @@ import abc
 import os
 import os.path
 import typing
+import sys
 
 from fiepipelib.container.shells.container_id_var_command import ContainerIDVariableCommand
 from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
@@ -35,13 +36,13 @@ class Shell(GitRepoShell):
     _root_id_var: RootIDVarCommand
     _asset_id_var: AssetIDVarCommand
 
-    def __init__(self, container_id: str, root_id: str, asset_id: str):
-        self._container_id_var = ContainerIDVariableCommand(container_id)
-        self.add_variable_command(self._container_id_var, 'container', [], False)
-        self._root_id_var = RootIDVarCommand(root_id)
-        self.add_variable_command(self._root_id_var, 'root', [], False)
-        self._asset_id_var = AssetIDVarCommand(asset_id)
-        self.add_variable_command(self._asset_id_var, "asset", [], False)
+    def __init__(self, container_var: ContainerIDVariableCommand, root_var: RootIDVarCommand, asset_var: AssetIDVarCommand):
+        self._container_id_var = container_var
+        self.add_variable_command(self._container_id_var, 'container', [], True)
+        self._root_id_var = root_var
+        self.add_variable_command(self._root_id_var, 'root', [], True)
+        self._asset_id_var = asset_var
+        self.add_variable_command(self._asset_id_var, "asset", [], True)
         super(Shell, self).__init__()
         routines = self.get_routines()
         routines.load()
@@ -86,5 +87,27 @@ class Shell(GitRepoShell):
         log_message = self.do_coroutine(log_message_ui.execute("Log message"))
         self.do_coroutine(routines.commit_recursive(log_message))
 
+def main():
+    container_var = ContainerIDVariableCommand("")
+    if not container_var.set_from_args("container", sys.argv[1:], ""):
+        print("No container id given. e.g. -container 89347589372589")
+        input("")
+        exit(-1)
+    root_var = RootIDVarCommand("")
+    if not root_var.set_from_args("root", sys.argv[1:],""):
+        print("No root id given. e.g. -root 873489257498372")
+        input("")
+        exit(-1)
+    asset_var = AssetIDVarCommand("")
+    if not asset_var.set_from_args("asset", sys.argv[1:],""):
+        print("No asset id given. e.g. -assset 873489257498372")
+        input("")
+        exit(-1)
+    shell = Shell(container_var,root_var,asset_var)
+    shell.cmdloop()
+
+
+if __name__ == "__main__":
+    main()
 
 

@@ -1,6 +1,7 @@
 import pkg_resources
 import typing
 import time
+import datetime
 import signal
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -74,7 +75,8 @@ class WatcherRoutines(AspectConfigurationRoutines[WatchFolderConfig]):
                 while len(self._queue) != 0:
                     if self._request_stop:
                         break
-                    await self._feedback_ui.output("Found task.")
+                    now = datetime.datetime.now()
+                    await self._feedback_ui.output("Found task: " + now.strftime("%Y-%m-%d %H:%M:%S.%F %z"))
                     task_thread = self._queue.pop(0)
                     await task_thread()
                     await self._feedback_ui.output("CTRL C to stop queue.")

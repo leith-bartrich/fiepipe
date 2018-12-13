@@ -4,7 +4,6 @@ from fiepipelib.components.shells.component import AbstractNamedListBoundCompone
 from fiepipelib.container.local_config.data.localcontainerconfiguration import LocalContainerConfigurationManager
 from fiepipelib.container.local_config.routines.container import LocalContainerRoutines
 from fiepipelib.container.shared.routines.container import ContainerRoutines
-from fiepipelib.container.shells.container_id_var_command import ContainerIDVariableCommand
 from fiepipelib.gitstorage.data.git_root import SharedGitRootsComponent
 from fiepipelib.gitstorage.data.local_root_configuration import LocalRootConfigurationsComponent
 from fiepipelib.gitstorage.routines.gitroots import RootsConfigurableComponentRoutines, SharedRootsComponentRoutines, \
@@ -19,7 +18,8 @@ from fiepipelib.storage.routines.localstorage import LocalStorageRoutines
 from fieuishell.ChoiceInputModalUI import ChoiceInputModalShellUI
 from fieuishell.ModalInputDefaultUI import InputDefaultModalShellUI
 from fieuishell.ModalInputUI import InputModalShellUI
-
+from fiepipelib.container.shells.container_id_var_command import ContainerIDVariableCommand
+from fiepipelib.gitstorage.shells.vars.root_id import RootIDVarCommand
 
 class RootNameInputUI(InputDefaultModalShellUI[str]):
 
@@ -84,7 +84,9 @@ class RootsComponentCommand(
             raise LookupError("Container not configured.  Cannot enter it.")
         root_id = routines.get_local_name_for_shared_name(name)
         container_id = routines.get_container_routines().get_id()
-        return Shell(root_id, container_id)
+        root_var = RootIDVarCommand(root_id)
+        container_var = ContainerIDVariableCommand(container_id)
+        return Shell(root_var,container_var)
 
     def get_plugin_names_v1(self) -> typing.List[str]:
         ret = super(RootsComponentCommand, self).get_plugin_names_v1()
