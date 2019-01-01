@@ -31,6 +31,7 @@ def Add(repo, name, path, url, branch=None, no_checkout=False):
     args.append(url)
     args.append(path)
     repo.git.submodule(args)
+    return repo.submodule(name)
 
 
 def Remove(repo, name):
@@ -131,7 +132,7 @@ def Sync(repo):
     return repo.git.submodule("sync")
 
 
-def CreateFromSubDirectory(repo, subpath, name, forgedHistory=False, url: str = None):
+def CreateFromSubDirectory(repo, subpath, name, forgedHistory=False, url: str = None) -> git.Submodule:
     """Creates a submodule from an existing subdirectory in the repository.
 
     If the subdirectory was already comitted, it removes it form tracking before

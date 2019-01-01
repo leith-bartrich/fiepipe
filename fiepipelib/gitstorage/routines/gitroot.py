@@ -309,7 +309,8 @@ class GitRootRoutines(GitRepoRoutines):
 
         newid = NewAssetID()
         await self._feedback_ui.output("Creating new submodule for asset.")
-        asset_repo = CreateFromSubDirectory(creationRepo, creationSubPath, newid, url=newid + ".git")
+        asset_submod = CreateFromSubDirectory(creationRepo, creationSubPath, newid, url=newid + ".git")
+        asset_repo = git.Repo(asset_submod.abspath)
         await self._feedback_ui.output("Installing LFS in asset.")
         InstallLFSRepo(asset_repo)
 
