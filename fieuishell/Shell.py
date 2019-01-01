@@ -283,5 +283,6 @@ class VarCommand(Shell, typing.Generic[T]):
                 valid, value = self._ui.validate(args[i + 1])
                 if valid:
                     self.set_value(value)
-                    return
+                    return True
         self.set_value(default)
+        return False

@@ -1,7 +1,7 @@
 import os
 import os.path
 import typing
-
+import sys
 import cmd2
 
 import fiepipelib.shells.AbstractShell
@@ -20,7 +20,7 @@ from fiepipelib.gitstorage.shells.ui.log_message_input_ui import LogMessageInput
 from fiepipelib.gitstorage.shells.vars.root_id import RootIDVarCommand
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
-
+from fiepipelib.gitstorage.shells.vars.asset_id import AssetIDVarCommand
 
 class Shell(GitRepoShell):
     _container_id_var: ContainerIDVariableCommand = None
@@ -41,11 +41,11 @@ class Shell(GitRepoShell):
         root_name = root.GetName()
         return self.prompt_separator.join(['fiepipe', fqdn, container_name, root_name])
 
-    def __init__(self, root_id, container_id):
-        self._container_id_var = ContainerIDVariableCommand(container_id)
-        self.add_variable_command(self._container_id_var, "container", [], False)
-        self._root_id_var = RootIDVarCommand(root_id)
-        self.add_variable_command(self._root_id_var, "root", [], False)
+    def __init__(self, root_var, container_var):
+        self._container_id_var = container_var
+        self.add_variable_command(self._container_id_var, "container", [], True)
+        self._root_id_var = root_var
+        self.add_variable_command(self._root_id_var, "root", [], True)
 
         super(Shell, self).__init__()
 
@@ -58,6 +58,9 @@ class Shell(GitRepoShell):
 
         gitlab_command = GitLabServerCommand(self)
         self.add_submenu(gitlab_command, "gitlab", ['gl'])
+
+    def get_fork_args(self) -> typing.List[str]:
+        return super().get_fork_args()
 
     def get_routines(self) -> GitRootRoutines:
         return GitRootRoutines(self._container_id_var.get_value(), self._root_id_var.get_value(),
@@ -334,7 +337,10 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         asset = routines.get_asset(args[0])
 
         #path = asset.GetSubmodule().path
-        shell = GitAssetShell(routines.container.GetID(), routines.root.GetID(), asset.GetAsset().GetID())
+        container_var = ContainerIDVariableCommand(routines.container.GetID())
+        root_var = RootIDVarCommand(routines.root.GetID())
+        asset_var = AssetIDVarCommand(asset.GetAsset().GetID())
+        shell = GitAssetShell(container_var,root_var,asset_var)
         # shell = fiepipelib.shells.gitasset.Shell(asset, path, self._rootShell._container,
         #                                          self._rootShell._containerConfig, self._rootShell._GetRoot(),
         #                                          self._rootShell._GetConfig(), self._rootShell._localUser,
@@ -453,3 +459,22 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
 
             if not can_commit:
                 self.poutput(path)
+
+
+def main():
+    container_var = ContainerIDVariableCommand("")
+    if not container_var.set_from_args("container", sys.argv[1:], ""):
+        print("No container id given. e.g. -container 89347589372589")
+        input("")
+        exit(-1)
+    root_var = RootIDVarCommand("")
+    if not root_var.set_from_args("root", sys.argv[1:],""):
+        print("No root id given. e.g. -root 873489257498372")
+        input("")
+        exit(-1)
+    shell = Shell(root_var,container_var)
+    shell.cmdloop()
+
+
+if __name__ == "__main__":
+    main()

@@ -6,6 +6,9 @@ from fiepipelib.assetaspect.data.config import AspectConfiguration
 from fieui.FeedbackUI import AbstractFeedbackUI
 from fiepipelib.git.routines.ignore import AddIgnore, CheckCreateIgnore
 from fiepipelib.git.routines.lfs import InstallLFSRepo, Track
+from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
+from fiepipelib.gitstorage.data.local_root_configuration import LocalRootConfiguration
+from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
 
 
 T = typing.TypeVar("T", bound=AspectConfiguration)
@@ -14,6 +17,7 @@ T = typing.TypeVar("T", bound=AspectConfiguration)
 class AspectConfigurationRoutines(typing.Generic[T]):
 
     _config: T = None
+    _asset_routines:GitAssetRoutines = None
 
     def get_configuration(self) -> T:
         return self._config
@@ -24,8 +28,15 @@ class AspectConfigurationRoutines(typing.Generic[T]):
     def get_asset_repo(self) -> git.Repo:
         return git.Repo(self.get_asset_path())
 
-    def __init__(self, config:T):
+    def get_working_asset(self) -> GitWorkingAsset:
+        return GitWorkingAsset(self.get_asset_repo())
+
+    def get_asset_routines(self) -> GitAssetRoutines:
+        return self._asset_routines
+
+    def __init__(self, config:T,asset_routines:GitAssetRoutines):
         self._config = config
+        self._asset_routines = asset_routines
 
     def load(self):
         self.get_configuration().load()
