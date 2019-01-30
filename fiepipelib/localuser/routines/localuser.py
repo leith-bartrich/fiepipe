@@ -1,6 +1,7 @@
 import os.path
 
-from fiepipelib.localplatform.routines.localplatform import AbstractLocalPlatformBaseRoutines
+from fiepipelib.localplatform.routines.localplatform import AbstractLocalPlatformBaseRoutines, \
+    get_local_platform_routines
 
 
 class LocalUserRoutines(object):
@@ -27,3 +28,9 @@ class LocalUserRoutines(object):
         if not os.path.exists(ret):
             os.makedirs(ret)
         return ret
+
+
+def get_local_user_routines() -> LocalUserRoutines:
+    plat = get_local_platform_routines()
+    user = LocalUserRoutines(plat)
+    return user

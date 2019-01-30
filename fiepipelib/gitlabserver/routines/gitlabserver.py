@@ -7,7 +7,7 @@ import typing
 
 import git
 
-from fiepipelib.git.routines.remote import create_update_remote
+from fiepipelib.git.routines.remote import create_update_remote, get_commits_behind, get_commits_ahead
 from fiepipelib.git.routines.repo import RepoExists, DeleteLocalRepo
 from fiepipelib.gitlabserver.data.gitlab_server import GitLabServer, GitLabServerManager
 from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedRoutines
@@ -15,7 +15,8 @@ from fiepipelib.localplatform.routines.localplatform import get_local_platform_r
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
 from fieui.ModalTrueFalseDefaultQuestionUI import AbstractModalTrueFalseDefaultQuestionUI
-from fiepipelib.storage.localvolume import localvolume
+
+
 class GitLabServerRoutines(object):
     """Abstract base routines for a gitlab server manager.  Enforces some basic naming conventions
     on the gilab server.  Such as prepending "fiepipe_" to a gitlab project, and a standardized
@@ -68,6 +69,9 @@ class GitLabServerRoutines(object):
         mangled_asset_id = mangled_asset_id.replace(" ", "")
         return server.get_ssh_url(group_name, "fiepipe_gitasset_" + mangled_asset_id + ".git")
 
+    def group_name_from_fqdn(self, fqdn: str):
+        return "fiepipe." + fqdn
+
 
 T = typing.TypeVar("T", bound=AbstractLocalManagedRoutines)
 
@@ -90,10 +94,10 @@ class GitLabGitStorageRoutines(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_local_repo_path(self)-> str:
+    def get_local_repo_path(self) -> str:
         raise NotImplementedError()
 
-    async def pull(self,feedback_ui:AbstractFeedbackUI):
+    async def pull(self, feedback_ui: AbstractFeedbackUI):
 
         server = self.get_server_routines().get_server()
         local_repo_path = self.get_local_repo_path()
@@ -111,10 +115,7 @@ class GitLabGitStorageRoutines(abc.ABC):
             await feedback_ui.error("Repository doesn't exist.  Cannot pull.  You might want to clone it or init it?")
             return
 
-
-
-
-    async def push(self, feedback_ui:AbstractFeedbackUI):
+    async def push(self, feedback_ui: AbstractFeedbackUI):
 
         server = self.get_server_routines().get_server()
         remote_url = self.get_remote_url()
@@ -138,6 +139,37 @@ class GitLabGitStorageRoutines(abc.ABC):
         await feedback_ui.output("Pushing to master: " + local_path + " -> " + remote_url)
         remote.push("master")
 
+    async def is_behind_remote(self, feedback_ui: AbstractFeedbackUI) -> bool:
+
+        server = self.get_server_routines().get_server()
+        remote_url = self.get_remote_url()
+        local_path = self.get_local_repo_path()
+
+        repo = git.Repo(local_path)
+        server_name = server.get_name()
+
+        await feedback_ui.output("Updating remote " + server_name + " to: " + remote_url)
+        create_update_remote(repo, server_name, remote_url)
+
+        commits_behind = get_commits_behind(repo, "master", server_name)
+
+        return len(commits_behind) != 0
+
+    async def is_aheadof_remote(self, feedback_ui: AbstractFeedbackUI) -> bool:
+
+        server = self.get_server_routines().get_server()
+        remote_url = self.get_remote_url()
+        local_path = self.get_local_repo_path()
+
+        repo = git.Repo(local_path)
+        server_name = server.get_name()
+
+        await feedback_ui.output("Updating remote " + server_name + " to: " + remote_url)
+        create_update_remote(repo, server_name, remote_url)
+
+        commits_ahead = get_commits_ahead(repo, "master", server_name)
+
+        return len(commits_ahead) != 0
 
 
 class GitLabManagedTypeRoutines(typing.Generic[T]):
