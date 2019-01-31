@@ -14,12 +14,15 @@ from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
 from fiepipelib.gitstorage.routines.gitlab_server import GitLabFQDNGitRootRoutines
 from fiepipelib.gitstorage.routines.gitroot import GitRootRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
-
+from enum import Enum
 
 class AbstractPath(abc.ABC):
+    """A static path. Not a parent, not a child. Not dynamic. Not a subdirectory. Just an abtract path. Might be leaf
+    or a base or whatever. """
 
     @abc.abstractmethod
     def get_path(self) -> str:
+        """Gets (calculates) the absolute path of this path.  The way this is done depends on the implementation."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -35,17 +38,20 @@ class AbstractPath(abc.ABC):
         raise NotImplementedError()
 
     def get_base_static_path(self) -> 'AbstractPath':
+        """Gets the base path in this static structure.
+        If you know what type if should be, you can cast the results."""
         if isinstance(self, AbstractSubPath):
             parent = self.get_parent_path()
             return parent.get_base_static_path()
         else:
             return self
 
-
 class AbstractDirPath(AbstractPath, abc.ABC):
+    """Extends AbstractPath with the minimum requirements of a path that is a directory."""
 
     @abc.abstractmethod
     def get_subpaths(self) -> typing.List[AbstractPath]:
+        """Gets static directory entires."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -79,16 +85,34 @@ class AbstractDirPath(AbstractPath, abc.ABC):
 
 
 class AbstractSubPath(AbstractPath, abc.ABC):
+    """Extends an AbstractPath with parts neccesary to act as a sub-path of a parent path."""
+
     _parent_path: AbstractDirPath = None
 
     def get_parent_path(self) -> AbstractDirPath:
+        """The parent path to this sub-path"""
         return self._parent_path
 
     def __init__(self, parent_path: AbstractDirPath):
         self._parent_path = parent_path
 
 
+class AutoUpdateResults(Enum):
+    #order is important.  We're using a > to deal with reporting recursive status.
+    UP_TO_DATE_CLEAN = 1 #all up to date with no dirty assets
+    UP_TO_DATE_DIRTY = 2 #all up to date with some dirty assets
+    OUT_OF_DATE = 3 #some assets are out of date and can't be brought up to date
+    PENDING = 4 #we won't know util we run auto-update again
+
+    def get_worse(self, other:"AutoUpdateResults") -> "AutoUpdateResults":
+        if other>self:
+            return other
+        else:
+            return self
+
 class AbstractGitStorageBasePath(AbstractDirPath, abc.ABC):
+    """A base path, which is based on a git storage type.  Either a root or asset."""
+
     _subpaths: typing.List[AbstractSubPath] = None
     _gitlab_server_name: str = None
 
@@ -96,17 +120,39 @@ class AbstractGitStorageBasePath(AbstractDirPath, abc.ABC):
         return self._subpaths.copy()
 
     def get_gitlab_server_name(self):
+        """The (local) name of the gitlab server this basepath should use for remote operations."""
         return self._gitlab_server_name
 
     def __init__(self, gitlab_server_name: str):
         self._gitlab_server_name = gitlab_server_name
         self._subpaths = []
 
+    def get_sub_basepaths_recursive(self) -> typing.List["AbstractAssetBasePath"]:
+        """A recursive version of get sub basepaths"""
+        ret = []
+        children = self.get_sub_basepaths()
+        ret.extend(children)
+        for child in children:
+            ret.extend(child.get_sub_basepaths_recursive())
+        return ret
+
+    @abc.abstractmethod
+    def get_sub_basepaths(self) -> typing.List["AbstractAssetBasePath"]:
+        """Returns a list of AbstratAssetBasePaths that can be reached from inside this GitStorage Base Path.
+        Not recursive into further BasePaths.  But yes, recursive through this entire static structure and
+        also any dynamically generate-able BasePaths reachable from this static structure.
+        e.g. yes, individual named character asset basepaths from within a static 'characters' directory.
+        """
+        raise NotImplementedError()
+
+
     def add_subpath(self, subpath: AbstractSubPath):
+        """Add a subpath to this path."""
         subpath._parent_path = self
         self._subpaths.append(subpath)
 
     async def create_self_routine(self, feedback_ui: AbstractFeedbackUI):
+        """For a base-path, this just checks for existence.  It'll throw an exception if it doens't already exist."""
         # base paths just check that they exist and move on.
         # a git storage base-path also checks that it can made a valid repo
         path = self.get_path()
@@ -119,31 +165,38 @@ class AbstractGitStorageBasePath(AbstractDirPath, abc.ABC):
 
     @abc.abstractmethod
     def get_fqdn(self) -> str:
+        """Gets the FQDN of this base"""
         raise NotImplementedError()
 
     @abc.abstractmethod
     def get_container_id(self) -> str:
+        """Gets the container id of this base"""
         raise NotImplementedError()
 
     @abc.abstractmethod
     def get_root_id(self) -> str:
+        """Gets the root id of this base"""
         raise NotImplementedError()
 
     def remote_is_ahead(self) -> bool:
+        """return true or false if the remote is ahead of the local worktree or not"""
         repo = Repo(self.get_path())
         remote_commmits_ahead = get_commits_ahead(repo, "master", self.get_gitlab_server_name())
         return len(remote_commmits_ahead) > 0
 
     def remote_is_behind(self) -> bool:
+        """returns true or false if the remote is behind the local worktree or not"""
         repo = Repo(self.get_path())
         remote_commmits_behind = get_commits_behind(repo, "master", self.get_gitlab_server_name())
         return len(remote_commmits_behind) > 0
 
     def is_detached(self) -> bool:
+        """return true or false if the worktree is detached from the head or not"""
         repo = Repo(self.get_path())
         return repo.head.is_detached
 
     def is_checked_out(self) -> bool:
+        """returns true of false if the worktree is checked out or not"""
         repo = Repo(self.get_path())
         # for a root, we check if we're bare.
         if repo.bare:
@@ -164,15 +217,27 @@ class AbstractGitStorageBasePath(AbstractDirPath, abc.ABC):
 
         return True
 
-    def is_dirty(self):
+    def is_dirty(self, consider_index:bool, consider_working_tree:bool, consider_untracked_files:bool, consider_submodule_changes:bool):
+        """Returns true or false based on whether the worktree is dirty as per the parameters
+        :param consider_submodule_changes: whether to consider changes to submodules as making this tree 'dirty'
+        :param consider_untracked_files: whether to consider the presence of untrack files as making thsi tree 'dirtt'
+        :param consider_working_tree: whether to consider changes to the worktree as making this tree 'dirty'
+        :param consider_index: whether to consider changes to the index as making this tree 'dirty'
+        """
         repo = Repo(self.get_path())
-        return repo.is_dirty(index=True, working_tree=True, untracked_files=True, submodules=True)
+        return repo.is_dirty(index=consider_index, working_tree=consider_working_tree, untracked_files=consider_untracked_files, submodules=consider_submodule_changes)
 
+    @abc.abstractmethod
+    async def auto_update_routine(self, feedback_ui:AbstractFeedbackUI) -> AutoUpdateResults:
+        """Auto updates this static structure, providing all feedback to the feedback_ui."""
+        raise NotImplementedError()
 
 class AbstractRootBasePath(AbstractGitStorageBasePath):
+    """A basepath based on a git storage root"""
     _root_routines: GitRootRoutines = None
 
     def get_routines(self):
+        """Gets GitRootRoutines"""
         return self._root_routines
 
     def get_fqdn(self) -> str:
@@ -191,11 +256,19 @@ class AbstractRootBasePath(AbstractGitStorageBasePath):
     def get_path(self) -> str:
         return self._root_routines.get_local_repo_path()
 
+    def get_gitlab_root_routines(self) -> GitLabFQDNGitRootRoutines:
+        """Gets GitLabFQDNGitRootRooutines for this root."""
+        gitlab_server_routines = GitLabServerRoutines(self.get_gitlab_server_name())
+        root_routines = self.get_routines()
+        return GitLabFQDNGitRootRoutines(gitlab_server_routines,root_routines.root,root_routines.root_config)
+
 
 class AbstractAssetBasePath(AbstractGitStorageBasePath):
+    """A base-path for a git storage asset."""
     _asset_routines: GitAssetRoutines
 
     def get_routines(self):
+        """Gets the GitAssetRoutines"""
         return self._asset_routines
 
     def get_fqdn(self) -> str:
@@ -208,6 +281,7 @@ class AbstractAssetBasePath(AbstractGitStorageBasePath):
         return self.get_routines().root.GetID()
 
     def get_asset_id(self) -> str:
+        """Gets the asset_id of the git asset at this base-path"""
         return self.get_asset_id()
 
     def __init__(self, gitlab_server_name: str, routines: GitAssetRoutines):
@@ -219,10 +293,13 @@ class AbstractAssetBasePath(AbstractGitStorageBasePath):
 
 
 class StaticSubDir(AbstractSubPath, AbstractDirPath):
+    """A static subdirectory in the static structure.  Implements both SubPath and DirPath.
+    Note, it's not a kind of submodule.  It is explicitly a normal subdirectory."""
     _dirname: str = None
     _subpaths: typing.List[AbstractSubPath] = None
 
     def get_dirname(self) -> str:
+        """The directory's name.  e.g. for the path c:\\foo\\bar this would return 'bar'"""
         return self._dirname
 
     def get_subpaths(self) -> typing.List[AbstractSubPath]:
@@ -234,6 +311,7 @@ class StaticSubDir(AbstractSubPath, AbstractDirPath):
         super().__init__(parent_path)
 
     def add_subpath(self, subpath: AbstractSubPath):
+        """Adds the given static SubPath to this directory."""
         subpath._parent_path = self
         self._subpaths.append(subpath)
 
@@ -246,9 +324,10 @@ class StaticSubDir(AbstractSubPath, AbstractDirPath):
 
 
 class AssetsStaticSubDir(StaticSubDir):
-    """A static subdirectory that contains assets."""
+    """A static subdirectory that contains N number of git storage assets."""
 
     def get_submodules(self) -> typing.Dict[str, Submodule]:
+        """Gets the contained assets as dictionary of git.Submodule objects where the directory name is the key."""
         ret = {}
         repo = Repo(self.get_base_static_path().get_path())
         dir_path = self.get_path()
@@ -260,7 +339,10 @@ class AssetsStaticSubDir(StaticSubDir):
                 submods[submod_dirname] = submod
         return submods
 
-    def get_asset_routines_by_dirname(self, feedback_ui: AbstractFeedbackUI, dirname: str):
+    def get_asset_routines_by_dirname(self, feedback_ui: AbstractFeedbackUI, dirname: str) -> GitAssetRoutines:
+        """Gets an instance of GitAssetRoutines for a specific named sub-asset.
+        Typically, you'll use get_submodules to get a named list, and then use the name to get the Routines.
+        It's always possible someone deleted the asset in the interim, resulting in an exception throw."""
         submods = self.get_submodules()
         if dirname not in submods.keys():
             raise FileNotFoundError(dirname)
@@ -270,7 +352,9 @@ class AssetsStaticSubDir(StaticSubDir):
         return GitAssetRoutines(container_id=base_path.get_container_id(), root_id=base_path.get_root_id(),
                                 asset_id=submod.name, feedback_ui=feedback_ui)
 
-    async def create_new_empty_asset(self, feedback_ui: AbstractFeedbackUI, dirname: str):
+    async def create_new_empty_asset_routine(self, feedback_ui: AbstractFeedbackUI, dirname: str):
+        """Creates a new empty asset with a new id at the given directory name.
+        Will throw ane exception if the directory exists."""
         base_path = self.get_base_static_path()
         assert isinstance(base_path, AbstractGitStorageBasePath)
         repo = Repo(base_path.get_path())
@@ -286,7 +370,9 @@ class AssetsStaticSubDir(StaticSubDir):
         await feedback_ui.output("Creating new empty submodule: " + submod_abspath)
         CreateEmptySubmodule(repo, relpath, asset_id, url)
 
-    async def create_from_existing(self, feedback_ui: AbstractFeedbackUI, dirname: str, asset_id: str):
+    async def add_from_existing_routine(self, feedback_ui: AbstractFeedbackUI, dirname: str, asset_id: str):
+        """Adds an pre-existing asset to this directory at the given dirname.  Requires the asset_id of
+        that existing asset.  May throw if the directory already exists."""
         base_path = self.get_base_static_path()
         assert isinstance(base_path, AbstractGitStorageBasePath)
         repo = Repo(base_path.get_path())
@@ -301,7 +387,9 @@ class AssetsStaticSubDir(StaticSubDir):
         await feedback_ui.output("Adding existing submodule: " + url + " at " + submod_abspath)
         AddSubmodule(repo, asset_id, relpath, url)
 
-    async def subdir_to_new_asset(self, feedback_ui: AbstractFeedbackUI, dirname: str):
+    async def subdir_to_new_asset_routine(self, feedback_ui: AbstractFeedbackUI, dirname: str):
+        """converts an existing subdirectory to a new asset with a new id.
+        May throw if the directory doesn't already exist."""
         base_path = self.get_base_static_path()
         assert isinstance(base_path, AbstractGitStorageBasePath)
         repo = Repo(base_path.get_path())
@@ -318,49 +406,43 @@ class AssetsStaticSubDir(StaticSubDir):
         CreateSubmoduleFromSubDirectory(repo, relpath, asset_id, url=url)
 
 
-class AbstractDesktopProjectRootBasePath(AbstractRootBasePath):
 
-    def get_gitlab_root_routines(self) -> GitLabFQDNGitRootRoutines:
-        gitlab_server_routines = GitLabServerRoutines(self.get_gitlab_server_name())
-        root_routines = self.get_routines()
-        return GitLabFQDNGitRootRoutines(gitlab_server_routines,root_routines.root,root_routines.root_config)
-
+class AbstractDesktopProjectRootBasePath(AbstractRootBasePath, abc.ABC):
+    """A convenience base path base class for Desktop style project roots.
+    Assumes distributed project system, contributed to and pulled by many
+    different desktop users across multiple sites/networks/segments/planets/solar-systems/etc."""
 
     async def auto_update_routine(self, feedback_ui:AbstractFeedbackUI):
-        """Root auto update behavior is as follows:
+        """Desktop Root auto update behavior."""
 
-        auto_update all submodules/children first.
+        #start with best and downgrade as we go using get_worse.
+        ret = AutoUpdateResults.UP_TO_DATE_CLEAN
 
-        If we're dirty(not_submodule) we tell the user to keep working and either commit or revert.  done.
-
-        If we're ahead, we push.
-
-        If we're behind or detached, we pull.
-
-        If we're ahead and behind, we pull and check for success or failure.
-
-            Upon failure, (due to conflict) we inform the user they'll need to merge. done.
-
-            Upon success, done.
+        #first update all children
+        children = self.get_sub_basepaths()
 
 
-        """
+        for child in children:
+            child_status = await child.auto_update_routine(feedback_ui)
+            ret = ret.get_worse(child_status)
 
-        #TODO: update all children first.
+        #now, collect information about the remote and the local.
 
+        #ahead, behind, detached
         is_ahead = self.remote_is_behind()
         is_behind = self.remote_is_ahead()
         is_detached = self.is_detached()
+
 
         root_routines = self.get_routines()
         gitlab_root_routines = self.get_gitlab_root_routines()
         repo = root_routines.get_local_repo()
 
+        #dirty. we don't care about submodules.
         is_dirty = repo.is_dirty(index=True,working_tree=True,untracked_files=True,submodules=False)
 
-        unmerged_blobs = repo.index.unmerged_blobs()
-
         #checking for conflicts
+        unmerged_blobs = repo.index.unmerged_blobs()
         conflicted = False
         for path in unmerged_blobs:
             list_of_blobs = unmerged_blobs[path]
@@ -368,37 +450,54 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath):
                 # Now we can check each stage to see whether there were any conflicts
                 if stage != 0:
                     conflicted = True
+
+        #if we're conflicted, inform, and we're done.  can't auto fix conflicts.
         if conflicted:
             await feedback_ui.warn(self.get_path() + " is conflicted.")
             await feedback_ui.output("You will need to resolve conflicts or cancel the merge.")
-            return
+            return ret.get_worse(AutoUpdateResults.OUT_OF_DATE)
 
 
-        #dirty disables auto upating until it's no longer dirty.
+        #if we're dirty (ignoring submodules) inform, advise and we're done.
+        #bonus, we also warn if we're behind and suggest manual intervetion to merge.
         if is_dirty:
-            await feedback_ui.warn(self.get_path() + " is dirty.")
-            await feedback_ui.output("Once you are done making changes, you'll want to either commit them, or revert them; to resume auto updating.")
+            await feedback_ui.warn("Desktop root " + root_routines.container.GetShortName() + "/" + root_routines.root.GetName() + " is dirty.")
+            await feedback_ui.output("Once you are done making changes, you'll want to either commit them, or revert them.")
             if is_behind:
-                await feedback_ui.warn(self.get_path() + " has upstream changes.")
-                await feedback_ui.output("You may wish to merge in the changes, or you could wait.")
-            return
+                await feedback_ui.warn("Desktop root " + root_routines.container.GetShortName() + "/" + root_routines.root.GetName() + " also has upstream changes.")
+                await feedback_ui.output("You may wish to merge in the changes, or you could wait and do it later.")
+                return ret.get_worse(AutoUpdateResults.OUT_OF_DATE)
+            else:
+                return ret.get_worse(AutoUpdateResults.UP_TO_DATE_DIRTY)
 
-        #ahead and not behind or detached, is a push.
-        if is_ahead and not (is_behind or is_detached):
+
+        #if we're detached, we checkout.
+        if is_detached:
+            await feedback_ui.output("Desktop root " + root_routines.container.GetShortName() + "/" + root_routines.root.GetName() + "has a detached head, but is clean.")
+            await feedback_ui.output("Checking out the 'master' branch at HEAD.")
+            output = repo.git.checkout("master")
+            await feedback_ui.output(output)
+            return ret.get_worse(AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
+
+        #ahead and not behind, is a push.
+        if is_ahead and not is_behind:
+            await feedback_ui.output("Desktop root " + root_routines.container.GetShortName() + "/" + root_routines.root.GetName() + "is ahead and clean, and will be pushed.")
             await gitlab_root_routines.push(feedback_ui)
-            return
+            return ret.get_worse(AutoUpdateResults.UP_TO_DATE_CLEAN)
 
-        #any pull could leave us conflicted.  If we are left conflicted, it's handled the next time we auto-update.
+        #any pull could leave us conflicted.  If we are left conflicted, that's handled the next time we auto-update.
 
-        #behind or detached, is a pull.
-        if not is_ahead and (is_behind or is_detached):
+        #behind, is a pull.
+        if not is_ahead and is_behind:
+            await feedback_ui.output("Desktop root " + root_routines.container.GetShortName() + "/" + root_routines.root.GetName() + "is behind but clean, and will be pulled.")
             await gitlab_root_routines.pull(feedback_ui)
-            return
+            return ret.get_worse(AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
 
         #ahead and behind is a pull.
-        if is_ahead and (is_behind or is_detached):
+        if is_ahead and is_behind:
+            await feedback_ui.output("Desktop root " + root_routines.container.GetShortName() + "/" + root_routines.root.GetName() + "is behind and ahead, but clean, and will be pulled.")
             await gitlab_root_routines.pull(feedback_ui)
-            return
+            return ret.get_worse(AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
 
-        #most likely, we're up to date and clean.  with the exception of submodules, which may be even more up to date.
-        return
+        #if we got here, most likely, we're up to date and clean.
+        return ret.get_worse(AutoUpdateResults.UP_TO_DATE_CLEAN)
