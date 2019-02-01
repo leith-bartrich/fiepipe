@@ -4,18 +4,54 @@ import git
 
 
 def InstallLFSGlobal():
-    git.Git().lfs("install")
+    if not LFSIsInstalledGlobal():
+        return git.Git().lfs("install")
 
 
 def InstallLFSRepo(repo: git.Repo):
-    repo.git.lfs("install", "--local")
+    if not LFSIsInstalledRepo(repo):
+        return repo.git.lfs("install", "--local")
+
+def LFSIsInstalledRepo(repo: git.Repo):
+    configs = repo.git.config("--list --local")
+    assert isinstance(configs,str)
+    config_lines = configs.splitlines()
+    has_clean = False
+    has_smudge = False
+    has_process = False
+
+    for line in config_lines:
+        if line.startswith("filter.lfs.clean"):
+            has_clean = True
+        if line.startswith("filter.lfs.smudge"):
+            has_smudge = True
+        if line.startswith("filter.lfs.process"):
+            has_process = True
+
+    return has_clean and has_process and has_smudge
+
+def LFSIsInstalledGlobal():
+    configs = git.Git().config("--list --global")
+    assert isinstance(configs,str)
+    config_lines = configs.splitlines()
+    has_clean = False
+    has_smudge = False
+    has_process = False
+
+    for line in config_lines:
+        if line.startswith("filter.lfs.clean"):
+            has_clean = True
+        if line.startswith("filter.lfs.smudge"):
+            has_smudge = True
+        if line.startswith("filter.lfs.process"):
+            has_process = True
+
+    return has_clean and has_process and has_smudge
+
 
 
 def Track(repo: git.Repo, patterns:typing.List[str]):
     """@param patterns:  A list of patterns e.g. ["*.foo","bar/*.psd"]
-    @param readd: If true, existing git tracked files that meet the pattern are removed from normal
-    git tracking and re-added as lfs tracked.  Note this doesn't affect history.  Only current status
-    and subsequent commits.
     """
     if len(patterns) == 0:
         return
@@ -26,8 +62,9 @@ def Track(repo: git.Repo, patterns:typing.List[str]):
     track_args = ["track"]
     track_args.extend(quoted)
     ret = repo.git.lfs(track_args)
-    rm_args = ["--cached", "--ignore-unmatch"]
-    rm_args.extend(quoted)
+
+    #rm_args = ["--cached", "--ignore-unmatch"]
+    #rm_args.extend(quoted)
     #ret = ret + repo.git.rm(rm_args)
     # for pattern in patterns:
     # we always do this just incase.

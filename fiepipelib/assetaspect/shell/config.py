@@ -55,7 +55,7 @@ class ConfigCommand(AbstractShell, typing.Generic[T]):
 
         Usage: configure"""
         routines = self.get_configuration_routines()
-        self.do_coroutine(routines.create_update_configuration())
+        self.do_coroutine(routines.create_update_configuration_interactive_routine())
 
     def do_unconfigure(self, args):
         """Unconfigures (removes the configuration for) this aspect.

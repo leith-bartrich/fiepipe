@@ -6,7 +6,7 @@ import signal
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from threading import Thread
-from fiepipelib.assetaspect.routines.config import AspectConfigurationRoutines
+from fiepipelib.assetaspect.routines.config import AspectConfigurationRoutines, AutoConfigurationResult
 from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
 from fiepipelib.watchfolder.data.aspect_config import WatchFolderConfig
 from fieui.FeedbackUI import AbstractFeedbackUI
@@ -24,7 +24,10 @@ class WatcherRoutines(AspectConfigurationRoutines[WatchFolderConfig]):
     def default_configuration(self):
         pass
 
-    async def reconfigure(self):
+    async def reconfigure_interactive_routine(self):
+        pass
+
+    async def auto_reconfigure_routine(self, feedback_ui: AbstractFeedbackUI) -> AutoConfigurationResult:
         pass
 
     async def start_watching_routine(self, asset_path: str, watch_dir_path: str):

@@ -11,10 +11,12 @@ from fiepipelib.git.routines.submodules import CreateEmpty as CreateEmptySubmodu
 from fiepipelib.gitlabserver.routines.gitlabserver import GitLabServerRoutines
 from fiepipelib.gitstorage.data.git_asset import NewID as NewAssetID
 from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
-from fiepipelib.gitstorage.routines.gitlab_server import GitLabFQDNGitRootRoutines
+from fiepipelib.gitstorage.routines.gitlab_server import GitLabFQDNGitRootRoutines, GitLabFQDNGitAssetRoutines
 from fiepipelib.gitstorage.routines.gitroot import GitRootRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
 from enum import Enum
+from fiepipelib.enum import get_worse_enum
+from fiepipelib.assetaspect.routines.config import AutoConfigurationResult
 
 class AbstractPath(abc.ABC):
     """A static path. Not a parent, not a child. Not dynamic. Not a subdirectory. Just an abtract path. Might be leaf
@@ -32,9 +34,12 @@ class AbstractPath(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def create_routine(self, feedback_ui: AbstractFeedbackUI, recursive=True):
+    async def create_routine(self, feedback_ui: AbstractFeedbackUI, recursive=True) -> bool:
         """Creates structure.  Should be forgiving of structure that already exists if possible.
-        Should fail when neccesary."""
+        Should fail when neccesary.
+        Should provide feeedback as to failure.
+
+        Returns true if created or okay.  Returns false if creation failed."""
         raise NotImplementedError()
 
     def get_base_static_path(self) -> 'AbstractPath':
@@ -55,10 +60,12 @@ class AbstractDirPath(AbstractPath, abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def create_self_routine(self, feedback_ui: AbstractFeedbackUI):
+    async def create_self_routine(self, feedback_ui: AbstractFeedbackUI) -> bool:
         """Creates just this DirPath.
           Should be forgiving of existing structure.
           Should fail if neccesary.
+          Should inform reason via feedback_ui.
+          should return True if created or okay.  Should return false upon error.
           Children are handled elsewhere."""
         raise NotImplementedError
 
@@ -77,11 +84,15 @@ class AbstractDirPath(AbstractPath, abc.ABC):
                     return isgood
         return True
 
-    async def create_routine(self, feedback_ui: AbstractFeedbackUI, recursive=True):
-        await self.create_self_routine(feedback_ui)
+    async def create_routine(self, feedback_ui: AbstractFeedbackUI, recursive=True) -> bool:
+        ret = await self.create_self_routine(feedback_ui)
         if recursive:
             for subpath in self.get_subpaths():
-                await subpath.create_routine(feedback_ui, recursive)
+                sub_created = await subpath.create_routine(feedback_ui, recursive)
+                if sub_created == False:
+                    ret = False
+        return ret
+
 
 
 class AbstractSubPath(AbstractPath, abc.ABC):
@@ -104,11 +115,16 @@ class AutoUpdateResults(Enum):
     OUT_OF_DATE = 3 #some assets are out of date and can't be brought up to date
     PENDING = 4 #we won't know util we run auto-update again
 
-    def get_worse(self, other:"AutoUpdateResults") -> "AutoUpdateResults":
-        if other>self:
-            return other
-        else:
-            return self
+
+
+
+
+class AutoCreateResults(Enum):
+    NO_CHANGES = 1 #no changes were needed to (re)create this structure.
+    CHANGES_MADE = 2 #changes were made to (re)create this structure.
+    CANNOT_COMPLETE = 3 #cannot (re)create this structure.
+
+
 
 class AbstractGitStorageBasePath(AbstractDirPath, abc.ABC):
     """A base path, which is based on a git storage type.  Either a root or asset."""
@@ -137,7 +153,7 @@ class AbstractGitStorageBasePath(AbstractDirPath, abc.ABC):
         return ret
 
     @abc.abstractmethod
-    def get_sub_basepaths(self) -> typing.List["AbstractAssetBasePath"]:
+    def get_sub_basepaths(self, feedback_ui:AbstractFeedbackUI) -> typing.List["AbstractAssetBasePath"]:
         """Returns a list of AbstratAssetBasePaths that can be reached from inside this GitStorage Base Path.
         Not recursive into further BasePaths.  But yes, recursive through this entire static structure and
         also any dynamically generate-able BasePaths reachable from this static structure.
@@ -151,17 +167,18 @@ class AbstractGitStorageBasePath(AbstractDirPath, abc.ABC):
         subpath._parent_path = self
         self._subpaths.append(subpath)
 
-    async def create_self_routine(self, feedback_ui: AbstractFeedbackUI):
+    async def create_self_routine(self, feedback_ui: AbstractFeedbackUI) -> bool:
         """For a base-path, this just checks for existence.  It'll throw an exception if it doens't already exist."""
         # base paths just check that they exist and move on.
         # a git storage base-path also checks that it can made a valid repo
         path = self.get_path()
         if not os.path.exists(path):
             await feedback_ui.error("Base path doesn't exist: " + path)
-            raise FileNotFoundError(path)
+            return  False
         if not RepoExists(path):
             await feedback_ui.error("Not a valid git repository: " + path)
-            raise InvalidGitRepositoryError()
+            return False
+        return True
 
     @abc.abstractmethod
     def get_fqdn(self) -> str:
@@ -232,6 +249,24 @@ class AbstractGitStorageBasePath(AbstractDirPath, abc.ABC):
         """Auto updates this static structure, providing all feedback to the feedback_ui."""
         raise NotImplementedError()
 
+    @abc.abstractmethod
+    async def auto_configure_routine(self, feedback_ui:AbstractFeedbackUI) -> AutoConfigurationResult:
+        """Auto (re)configures for this static structure, providing all feedback to the feedback_ui."""
+        raise NotImplementedError()
+
+    async def auto_create_routine(self, feedback_ui:AbstractFeedbackUI) -> AutoCreateResults:
+        """Auto (re)creates this static structure, providing all feedback to the feedback_ui."""
+        exists = await self.check_exists_routine(feedback_ui,True)
+        if exists:
+            return AutoCreateResults.NO_CHANGES
+
+        created = await self.create_routine(feedback_ui,True)
+        if created:
+            return AutoCreateResults.CHANGES_MADE
+        else:
+            return AutoCreateResults.CANNOT_COMPLETE
+
+
 class AbstractRootBasePath(AbstractGitStorageBasePath):
     """A basepath based on a git storage root"""
     _root_routines: GitRootRoutines = None
@@ -262,6 +297,25 @@ class AbstractRootBasePath(AbstractGitStorageBasePath):
         root_routines = self.get_routines()
         return GitLabFQDNGitRootRoutines(gitlab_server_routines,root_routines.root,root_routines.root_config)
 
+    async def auto_routine(self, feedback_ui:AbstractFeedbackUI):
+        create_results = await self.auto_create_routine(feedback_ui)
+        await feedback_ui.output("Running auto (re)creation.")
+        if create_results == AutoCreateResults.CANNOT_COMPLETE:
+            await feedback_ui.warn("The (re)creation of the structure cannot complete.")
+            await feedback_ui.output("Canceling (re)configure and update until it's resolved.")
+            return
+        await feedback_ui.output("(re)creation result: " + create_results.name)
+        await feedback_ui.output("Running auto (re)configuration.")
+        configure_results = await self.auto_configure_routine(feedback_ui)
+        if configure_results == AutoConfigurationResult.INTERVENTION_REQUIRED:
+            await feedback_ui.warn("The (re)configuration of the structure cannot complete and requires user intervention.")
+            await feedback_ui.output("Canceling update until it's resolved.")
+            return
+        await feedback_ui.output("(re)configuration result: " + configure_results.name)
+        await feedback_ui.output("Running auto update.")
+        update_results = await self.auto_update_routine(feedback_ui)
+        await feedback_ui.output("update result: " + update_results.name)
+
 
 class AbstractAssetBasePath(AbstractGitStorageBasePath):
     """A base-path for a git storage asset."""
@@ -291,6 +345,14 @@ class AbstractAssetBasePath(AbstractGitStorageBasePath):
     def get_path(self) -> str:
         return self._asset_routines.abs_path
 
+    def get_gitlab_asset_routines(self) -> GitLabFQDNGitAssetRoutines:
+        """Gets GitLabFQDNGitAssetRooutines for this root."""
+        gitlab_server_routines = GitLabServerRoutines(self.get_gitlab_server_name())
+        asset_routines = self.get_routines()
+        return GitLabFQDNGitAssetRoutines(gitlab_server_routines,asset_routines.working_asset,asset_routines.container.GetFQDN())
+
+
+
 
 class StaticSubDir(AbstractSubPath, AbstractDirPath):
     """A static subdirectory in the static structure.  Implements both SubPath and DirPath.
@@ -318,9 +380,10 @@ class StaticSubDir(AbstractSubPath, AbstractDirPath):
     def get_path(self) -> str:
         return os.path.join(self.get_parent_path().get_path(), self._dirname)
 
-    async def create_self_routine(self, feedback_ui: AbstractFeedbackUI):
+    async def create_self_routine(self, feedback_ui: AbstractFeedbackUI) -> bool:
         path = self.get_path()
         os.makedirs(path, exist_ok=True)
+        return True
 
 
 class AssetsStaticSubDir(StaticSubDir):
@@ -406,6 +469,141 @@ class AssetsStaticSubDir(StaticSubDir):
         CreateSubmoduleFromSubDirectory(repo, relpath, asset_id, url=url)
 
 
+TABP = typing.TypeVar("TABP",bound=AbstractAssetBasePath)
+
+class GenericAssetBasePathsSubDir(AssetsStaticSubDir,typing.Generic[TABP]):
+
+    @abc.abstractmethod
+    def get_asset_basepath_by_dirname(self, dirname:str, feedback_ui:AbstractFeedbackUI) -> TABP:
+        """Create and return an appropriate AssetBasePath for the given dirname"""
+        raise NotImplementedError()
+
+
+    def get_asset_basepaths(self, feedback_ui:AbstractFeedbackUI) -> typing.List[TABP]:
+        """Returns a list of AssetBasePaths for submodules that have been checked out."""
+        ret = []
+        submods = self.get_submodules()
+        for dirname in submods.keys():
+            submod = submods[dirname]
+            #only return a basepath if it's been checked out.
+            if submod.module_exists():
+                ret.append(self.get_asset_basepath_by_dirname(dirname, feedback_ui))
+        return ret
+
+    async def create_and_configure(self, feedback_ui:AbstractFeedbackUI, dirname:str) -> bool:
+        base_path = self.get_asset_basepath_by_dirname(dirname,feedback_ui)
+        assert isinstance(base_path, AbstractAssetBasePath)
+        create_results = base_path.auto_create_routine(feedback_ui)
+        if create_results == AutoCreateResults.CANNOT_COMPLETE:
+            return False
+        configure_results = base_path.auto_configure_routine(feedback_ui)
+        if configure_results == AutoConfigurationResult.INTERVENTION_REQUIRED:
+            return False
+        return True
+
+    async def create_new_empty_asset_routine(self, feedback_ui: AbstractFeedbackUI, dirname: str):
+        await super().create_new_empty_asset_routine(feedback_ui, dirname)
+        await self.create_and_configure(feedback_ui,dirname)
+        return
+
+    async def subdir_to_new_asset_routine(self, feedback_ui: AbstractFeedbackUI, dirname: str):
+        await super().subdir_to_new_asset_routine(feedback_ui, dirname)
+        await self.create_and_configure(feedback_ui,dirname)
+        return
+
+
+class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath, abc.ABC):
+    """A convenience base path base class for Desktop style project roots.
+    Assumes distributed project system, contributed to and pulled by many
+    different desktop users across multiple sites/networks/segments/planets/solar-systems/etc."""
+
+    async def auto_update_routine(self, feedback_ui: AbstractFeedbackUI) -> AutoUpdateResults:
+        #start with best and downgrade as we go using get_worse.
+        ret = AutoUpdateResults.UP_TO_DATE_CLEAN
+
+        #first update all children
+        children = self.get_sub_basepaths(feedback_ui)
+
+
+        for child in children:
+            child_status = await child.auto_update_routine(feedback_ui)
+            ret = get_worse_enum(ret,child_status)
+
+        #now, collect information about the remote and the local.
+
+        #ahead, behind, detached
+        is_ahead = self.remote_is_behind()
+        is_behind = self.remote_is_ahead()
+        is_detached = self.is_detached()
+
+        asset_routines = self.get_routines()
+        gitlab_asset_routines = self.get_gitlab_asset_routines()
+        repo = asset_routines.get_repo()
+
+        #dirty. we don't care about submodules.
+        is_dirty = repo.is_dirty(index=True,working_tree=True,untracked_files=True,submodules=False)
+
+        #checking for conflicts
+        unmerged_blobs = repo.index.unmerged_blobs()
+        conflicted = False
+        for path in unmerged_blobs:
+            list_of_blobs = unmerged_blobs[path]
+            for (stage, blob) in list_of_blobs:
+                # Now we can check each stage to see whether there were any conflicts
+                if stage != 0:
+                    conflicted = True
+
+        #if we're conflicted, inform, and we're done.  can't auto fix conflicts.
+        if conflicted:
+            await feedback_ui.warn(self.get_path() + " is conflicted.")
+            await feedback_ui.output("You will need to resolve conflicts or cancel the merge.")
+            return get_worse_enum(ret,AutoUpdateResults.OUT_OF_DATE)
+
+
+        #if we're dirty (ignoring submodules) inform, advise and we're done.
+        #bonus, we also warn if we're behind and suggest manual intervetion to merge.
+        if is_dirty:
+            await feedback_ui.warn("Desktop asset " + asset_routines.container.GetShortName() + "/" +asset_routines.root.GetName() + "/" + asset_routines.relative_path + " is dirty.")
+            await feedback_ui.output("Once you are done making changes, you'll want to either commit them, or revert them.")
+            if is_behind:
+                await feedback_ui.warn("Desktop asset " + asset_routines.container.GetShortName() + "/" +asset_routines.root.GetName() + "/" + asset_routines.relative_path + " also has upstream changes.")
+                await feedback_ui.output("You may wish to merge in the changes, or you could wait and do it later.")
+                return get_worse_enum(ret,AutoUpdateResults.OUT_OF_DATE)
+            else:
+                return get_worse_enum(ret,AutoUpdateResults.UP_TO_DATE_DIRTY)
+
+
+        #if we're detached, we checkout.
+        if is_detached:
+            await feedback_ui.output("Desktop asset " + asset_routines.container.GetShortName() + "/" +asset_routines.root.GetName() + "/" + asset_routines.relative_path + "has a detached head, but is clean.")
+            await feedback_ui.output("Checking out the 'master' branch at HEAD.")
+            output = repo.git.checkout("master")
+            await feedback_ui.output(output)
+            return get_worse_enum(ret,AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
+
+        #ahead and not behind, is a push.
+        if is_ahead and not is_behind:
+            await feedback_ui.output("Desktop asset " + asset_routines.container.GetShortName() + "/" +asset_routines.root.GetName() + "/" + asset_routines.relative_path + "is ahead and clean, and will be pushed.")
+            await gitlab_asset_routines.push(feedback_ui)
+            return get_worse_enum(ret,AutoUpdateResults.UP_TO_DATE_CLEAN)
+
+        #any pull could leave us conflicted.  If we are left conflicted, that's handled the next time we auto-update.
+
+        #behind, is a pull.
+        if not is_ahead and is_behind:
+            await feedback_ui.output("Desktop asset " + asset_routines.container.GetShortName() + "/" +asset_routines.root.GetName() + "/" + asset_routines.relative_path + "is behind but clean, and will be pulled.")
+            await gitlab_asset_routines.pull(feedback_ui)
+            return get_worse_enum(ret,AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
+
+        #ahead and behind is a pull.
+        if is_ahead and is_behind:
+            await feedback_ui.output("Desktop asset " + asset_routines.container.GetShortName() + "/" +asset_routines.root.GetName() + "/" + asset_routines.relative_path + "is behind and ahead, but clean, and will be pulled.")
+            await gitlab_asset_routines.pull(feedback_ui)
+            return get_worse_enum(ret,AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
+
+        #if we got here, most likely, we're up to date and clean.
+        return get_worse_enum(ret,AutoUpdateResults.UP_TO_DATE_CLEAN)
+
 
 class AbstractDesktopProjectRootBasePath(AbstractRootBasePath, abc.ABC):
     """A convenience base path base class for Desktop style project roots.
@@ -419,12 +617,12 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath, abc.ABC):
         ret = AutoUpdateResults.UP_TO_DATE_CLEAN
 
         #first update all children
-        children = self.get_sub_basepaths()
+        children = self.get_sub_basepaths(feedback_ui)
 
 
         for child in children:
             child_status = await child.auto_update_routine(feedback_ui)
-            ret = ret.get_worse(child_status)
+            ret = get_worse_enum(ret,child_status)
 
         #now, collect information about the remote and the local.
 
@@ -455,7 +653,7 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath, abc.ABC):
         if conflicted:
             await feedback_ui.warn(self.get_path() + " is conflicted.")
             await feedback_ui.output("You will need to resolve conflicts or cancel the merge.")
-            return ret.get_worse(AutoUpdateResults.OUT_OF_DATE)
+            return get_worse_enum(ret,AutoUpdateResults.OUT_OF_DATE)
 
 
         #if we're dirty (ignoring submodules) inform, advise and we're done.
@@ -466,9 +664,9 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath, abc.ABC):
             if is_behind:
                 await feedback_ui.warn("Desktop root " + root_routines.container.GetShortName() + "/" + root_routines.root.GetName() + " also has upstream changes.")
                 await feedback_ui.output("You may wish to merge in the changes, or you could wait and do it later.")
-                return ret.get_worse(AutoUpdateResults.OUT_OF_DATE)
+                return get_worse_enum(ret,AutoUpdateResults.OUT_OF_DATE)
             else:
-                return ret.get_worse(AutoUpdateResults.UP_TO_DATE_DIRTY)
+                return get_worse_enum(ret,AutoUpdateResults.UP_TO_DATE_DIRTY)
 
 
         #if we're detached, we checkout.
@@ -477,13 +675,13 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath, abc.ABC):
             await feedback_ui.output("Checking out the 'master' branch at HEAD.")
             output = repo.git.checkout("master")
             await feedback_ui.output(output)
-            return ret.get_worse(AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
+            return get_worse_enum(ret,AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
 
         #ahead and not behind, is a push.
         if is_ahead and not is_behind:
             await feedback_ui.output("Desktop root " + root_routines.container.GetShortName() + "/" + root_routines.root.GetName() + "is ahead and clean, and will be pushed.")
             await gitlab_root_routines.push(feedback_ui)
-            return ret.get_worse(AutoUpdateResults.UP_TO_DATE_CLEAN)
+            return get_worse_enum(ret,AutoUpdateResults.UP_TO_DATE_CLEAN)
 
         #any pull could leave us conflicted.  If we are left conflicted, that's handled the next time we auto-update.
 
@@ -491,13 +689,13 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath, abc.ABC):
         if not is_ahead and is_behind:
             await feedback_ui.output("Desktop root " + root_routines.container.GetShortName() + "/" + root_routines.root.GetName() + "is behind but clean, and will be pulled.")
             await gitlab_root_routines.pull(feedback_ui)
-            return ret.get_worse(AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
+            return get_worse_enum(ret,AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
 
         #ahead and behind is a pull.
         if is_ahead and is_behind:
             await feedback_ui.output("Desktop root " + root_routines.container.GetShortName() + "/" + root_routines.root.GetName() + "is behind and ahead, but clean, and will be pulled.")
             await gitlab_root_routines.pull(feedback_ui)
-            return ret.get_worse(AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
+            return get_worse_enum(ret,AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
 
         #if we got here, most likely, we're up to date and clean.
-        return ret.get_worse(AutoUpdateResults.UP_TO_DATE_CLEAN)
+        return get_worse_enum(ret,AutoUpdateResults.UP_TO_DATE_CLEAN)

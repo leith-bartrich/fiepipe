@@ -3,20 +3,23 @@ import os
 import os.path
 import pathlib
 
-def CheckCreateIgnore(repo):
+def CheckCreateIgnore(repo) -> bool:
+    """returns true if it already existed"""
+    ret = True
     assert isinstance(repo, git.Repo)
     workTreeDir = repo.working_dir
     ignorePath = pathlib.Path(os.path.join(workTreeDir,".gitignore"))
     if not ignorePath.exists():
         ignorePath.touch()
+        ret = False
     elif not ignorePath.is_file():
         print(".gitignore exists but is not a file.")
         raise FileNotFoundError(str(ignorePath.absolute()))
     repo.index.add([str(ignorePath.absolute())])
-    
-    return ignorePath
+    return ret
 
-def AddIgnore(repo, pattern:str, replace_slashes=True):
+def AddIgnore(repo, pattern:str, replace_slashes=True) -> bool:
+    """returns true if a change was made."""
     if replace_slashes:
         pattern = pattern.replace('\\','/')
     assert isinstance(repo, git.Repo)
@@ -25,13 +28,14 @@ def AddIgnore(repo, pattern:str, replace_slashes=True):
         lines = f.readlines()
     for line in lines:
         if line.strip() == pattern.strip():
-            return
+            return False
     lines.append(pattern + '\n')
     with ignorePath.open('w') as f:
         for line in lines:
             stripped = line.strip()
             if stripped != '':
                 f.write(line)
+    return True
 
 def RemoveIgnore(repo, pattern):
     assert isinstance(repo, git.Repo)
