@@ -3,7 +3,7 @@ import asyncio
 import typing
 import  json
 
-from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedRoutines
+from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedInteractiveRoutines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.shells.AbstractShell import AbstractShell
@@ -17,7 +17,7 @@ class LocalManagedTypeCommand(AbstractShell, typing.Generic[T]):
 
 
     @abc.abstractmethod
-    def get_routines(self) -> AbstractLocalManagedRoutines[T]:
+    def get_routines(self) -> AbstractLocalManagedInteractiveRoutines[T]:
         raise NotImplementedError()
 
     def get_user(self) -> LocalUserRoutines:

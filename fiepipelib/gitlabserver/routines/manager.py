@@ -3,13 +3,13 @@ import typing
 from fiepipelib.gitlabserver.data.gitlab_server import GitLabServer, GitLabServerManager
 from fiepipelib.gitlabserver.routines.ui.gitlab_hostname_input_ui import GitLabHostnameInputDefaultUI
 from fiepipelib.gitlabserver.routines.ui.gitlab_username_input_ui import GitLabUsernameInputDefaultUI
-from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedRoutines
+from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedInteractiveRoutines
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
 
 
-class GitLabServerManagerRoutines(AbstractLocalManagedRoutines[GitLabServer]):
+class GitLabServerManagerInteractiveRoutines(AbstractLocalManagedInteractiveRoutines[GitLabServer]):
     """"Manages user's gitlab servers."""
 
     _hostname_input_default_ui: GitLabHostnameInputDefaultUI = None

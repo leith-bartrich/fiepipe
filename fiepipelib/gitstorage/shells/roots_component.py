@@ -6,20 +6,22 @@ from fiepipelib.container.local_config.routines.container import LocalContainerR
 from fiepipelib.container.shared.routines.container import ContainerRoutines
 from fiepipelib.gitstorage.data.git_root import SharedGitRootsComponent
 from fiepipelib.gitstorage.data.local_root_configuration import LocalRootConfigurationsComponent
-from fiepipelib.gitstorage.routines.gitroots import RootsConfigurableComponentRoutines, SharedRootsComponentRoutines, \
-    LocalRootConfigsComponentRoutines
+from fiepipelib.gitstorage.routines.gitroots import RootsConfigurableComponentRoutines, SharedRootsComponentInteractiveRoutines, \
+    LocalRootConfigsComponentInteractiveRoutines
 from fiepipelib.gitstorage.shells.gitroot import Shell
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fiepipelib.shells.AbstractShell import AbstractShell
 from fiepipelib.shells.ui.subpath_input_ui import SubpathInputDefaultUI
 from fiepipelib.storage.localvolume import localvolume
-from fiepipelib.storage.routines.localstorage import LocalStorageRoutines
+from fiepipelib.storage.routines.localstorage import LocalStorageInteractiveRoutines
 from fieuishell.ChoiceInputModalUI import ChoiceInputModalShellUI
 from fieuishell.ModalInputDefaultUI import InputDefaultModalShellUI
 from fieuishell.ModalInputUI import InputModalShellUI
 from fiepipelib.container.shells.container_id_var_command import ContainerIDVariableCommand
 from fiepipelib.gitstorage.shells.vars.root_id import RootIDVarCommand
+from fiepipelib.storage.routines.ui.volumes import NewVolumeNameInputUI
+from fiepipelib.storage.shells.ui.volumes import NewVolumeNameShellInputUI
 
 class RootNameInputUI(InputDefaultModalShellUI[str]):
 
@@ -61,19 +63,12 @@ class RootsComponentCommand(
         super().__init__()
 
     def get_named_list_bound_component_routines(self) -> RootsConfigurableComponentRoutines:
-        plat_routines = get_local_platform_routines()
-        user_routines = LocalUserRoutines(plat_routines)
         container_routines = ContainerRoutines(self._container_id_var.get_value())
-        container_config_routines = LocalContainerRoutines(self._container_id_var.get_value(),
-                                                           LocalContainerConfigurationManager(user_routines))
-        local_storage_routines = LocalStorageRoutines(user_routines, self.get_feedback_ui(),
-                                                      ChoiceInputModalShellUI(self),
-                                                      ConfigurableVolumeNameInputUI(self))
-        shared_routines = SharedRootsComponentRoutines(container_routines, RootNameInputUI(self), RootDescInputUI(self))
-
-        local_routines = LocalRootConfigsComponentRoutines(container_config_routines, local_storage_routines,
-                                                           ChoiceInputModalShellUI[localvolume](self),
-                                                           SubpathInputDefaultUI(self), shared_routines)
+        container_config_routines = LocalContainerRoutines(self._container_id_var.get_value())
+        shared_routines = SharedRootsComponentInteractiveRoutines(container_routines, RootNameInputUI(self), RootDescInputUI(self))
+        local_routines = LocalRootConfigsComponentInteractiveRoutines(container_config_routines,
+                                                                      ChoiceInputModalShellUI[localvolume](self),
+                                                                      SubpathInputDefaultUI(self), shared_routines)
         return RootsConfigurableComponentRoutines(shared_routines, local_routines)
 
     def get_shell(self, name) -> AbstractShell:

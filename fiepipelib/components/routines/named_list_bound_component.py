@@ -3,7 +3,7 @@ import typing
 
 from fiepipelib.components.data.components import AbstractNamedItemListComponent
 from fiepipelib.components.routines.bound_component import AbstractBoundComponentRoutines
-from fiepipelib.components.routines.component import AbstractNamedItemListComponentRoutines
+from fiepipelib.components.routines.component import AbstractNamedItemListComponentInteractiveRoutines
 
 SC = typing.TypeVar("SC", bound=AbstractNamedItemListComponent)
 LC = typing.TypeVar("LC", bound=AbstractNamedItemListComponent)
@@ -11,20 +11,34 @@ LC = typing.TypeVar("LC", bound=AbstractNamedItemListComponent)
 
 class AbstractNamedListBoundComponentRoutines(
     AbstractBoundComponentRoutines[
-        AbstractNamedItemListComponentRoutines[SC], AbstractNamedItemListComponentRoutines[LC]],
+        AbstractNamedItemListComponentInteractiveRoutines[SC], AbstractNamedItemListComponentInteractiveRoutines[LC]],
     typing.Generic[SC, LC]):
 
     @abc.abstractmethod
-    def get_shared_component_routines(self) -> AbstractNamedItemListComponentRoutines[SC]:
+    def get_shared_component_routines(self) -> AbstractNamedItemListComponentInteractiveRoutines[SC]:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_local_component_routines(self) -> AbstractNamedItemListComponentRoutines[LC]:
+    def get_local_component_routines(self) -> AbstractNamedItemListComponentInteractiveRoutines[LC]:
         raise NotImplementedError()
 
     @abc.abstractmethod
     def get_local_name_for_shared_name(self, name: str) -> str:
         raise NotImplementedError()
+
+    def get_shared_item_names(self) -> typing.List[str]:
+        return self.get_shared_component().get_names()
+
+    def get_local_item_names(self) -> typing.List[str]:
+        return self.get_local_component().get_names()
+
+    def get_names_dict(self) ->typing.Dict[str,str]:
+        ret = {}
+        shared_names = self.get_shared_item_names()
+        for shared_name in shared_names:
+            ret[shared_name] = self.get_local_name_for_shared_name(shared_name)
+        return ret
+
 
     def clear_local_item(self, shared_name: str):
         self.load()

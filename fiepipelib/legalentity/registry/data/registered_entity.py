@@ -38,7 +38,7 @@ def FromParameters(fqdn, publicKeys = [], revocations = []):
     return ret
 
 class localregistry(
-    fiepipelib.locallymanagedtypes.data.abstractmanager.AbstractUserLocalTypeManager['registeredlegalentity']):
+    fiepipelib.locallymanagedtypes.data.abstractmanager.AbstractUserLocalTypeManager['RegisteredEntity']):
 
     def FromJSONData(self, data):
         return FromJSONData(data)
@@ -60,7 +60,7 @@ class localregistry(
     def DeleteByFQDN(self, fqdn):
         self._Delete("fqdn",str(fqdn))
 
-    def GetByFQDN(self, fqdn):
+    def GetByFQDN(self, fqdn) -> typing.List['RegisteredEntity']:
         return self._Get([("fqdn",fqdn)])
 
 

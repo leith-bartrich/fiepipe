@@ -13,17 +13,13 @@ from fieui.FeedbackUI import AbstractFeedbackUI
 
 
 class LocalStorageRoutines(object):
+
     _localUser: LocalUserRoutines = None
     _feedbackUI: AbstractFeedbackUI = None
-    _choiceUI: AbstractChoiceInputModalUI[str] = None
-    _new_volume_name_ui: NewVolumeNameInputUI = None
 
-    def __init__(self, localUser: LocalUserRoutines, feedbackUI: AbstractFeedbackUI,
-                 choiceUI: AbstractChoiceInputModalUI[str], new_volume_name_ui: NewVolumeNameInputUI):
+    def __init__(self, localUser: LocalUserRoutines, feedbackUI: AbstractFeedbackUI):
         self._localUser = localUser
         self._feedbackUI = feedbackUI
-        self._choiceUI = choiceUI
-        self._new_volume_name_ui = new_volume_name_ui
 
     def get_home_volume(self) -> localvolume:
         return GetHomeVolume(self._localUser)
@@ -76,34 +72,11 @@ class LocalStorageRoutines(object):
             volume.AddAdjective(adj)
             manager.Set([volume])
 
-    async def add_adjective_routine(self, volume: localvolume):
-
-        manager = localvolumeregistry(self._localUser)
-        adjectives = self.get_available_adjectives()
-        choices = {}
-        for catName in adjectives.keys():
-            cat = adjectives[catName]
-            for adj in cat.keys():
-                desc = cat[adj]
-                choice = catName + ":" + adj
-                choices[choice] = adj
-
-        to_add = await self._choiceUI.execute("Adjective to add?", choices)
-
-        self.add_adjective(volume, to_add[1])
-
     def do_delete_adjective(self, volume: localvolume, adj: str):
         manager = localvolumeregistry(self._localUser)
         if volume.HasAdjective(adj):
             volume.RemoveAdjective(adj)
             manager.Set([volume])
-
-    async def do_delete_adjective_routine(self, volume: localvolume):
-        choices = dict()
-        for adj in volume.GetAdjectives():
-            choices[adj] = adj
-        choice, to_remove = await self._choiceUI.execute("Adjective to remove?", choices)
-        self.do_delete_adjective(volume,to_remove)
 
     async def do_setup_removable(self, path: str):
 
@@ -124,3 +97,37 @@ class LocalStorageRoutines(object):
                 named = True
 
         SetupUnregisteredRemovableVolume(str(pth.absolute()), name)
+
+
+class LocalStorageInteractiveRoutines(LocalStorageRoutines):
+    _choiceUI: AbstractChoiceInputModalUI[str] = None
+    _new_volume_name_ui: NewVolumeNameInputUI = None
+
+    def __init__(self, localUser: LocalUserRoutines, feedbackUI: AbstractFeedbackUI,
+                 choiceUI: AbstractChoiceInputModalUI[str], new_volume_name_ui: NewVolumeNameInputUI):
+        super(LocalStorageInteractiveRoutines, self).__init__(localUser,feedbackUI)
+        self._choiceUI = choiceUI
+        self._new_volume_name_ui = new_volume_name_ui
+
+    async def add_adjective_interactive_routine(self, volume: localvolume):
+
+        manager = localvolumeregistry(self._localUser)
+        adjectives = self.get_available_adjectives()
+        choices = {}
+        for catName in adjectives.keys():
+            cat = adjectives[catName]
+            for adj in cat.keys():
+                desc = cat[adj]
+                choice = catName + ":" + adj
+                choices[choice] = adj
+
+        to_add = await self._choiceUI.execute("Adjective to add?", choices)
+
+        self.add_adjective(volume, to_add[1])
+
+    async def do_delete_adjective_interactive_routine(self, volume: localvolume):
+        choices = dict()
+        for adj in volume.GetAdjectives():
+            choices[adj] = adj
+        choice, to_remove = await self._choiceUI.execute("Adjective to remove?", choices)
+        self.do_delete_adjective(volume,to_remove)

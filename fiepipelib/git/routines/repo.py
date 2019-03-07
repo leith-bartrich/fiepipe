@@ -75,12 +75,20 @@ def CloneFrom(src:str, dst:str):
     """
     git.Repo().clone_from(src,dst)
 
-def PushToRepo(src, dst, norecursive = True):
-    srcrep = git.Repo(src)
-    if norecursive:
-        srcrep.git.push('--no-recurse-submodules',dst)
-    else:
-        srcrep.git.push(dst)
 
 
-    
+def is_in_conflict(repo:git.Repo) -> bool:
+
+    # checking for conflicts
+    unmerged_blobs = repo.index.unmerged_blobs()
+
+    conflicted = False
+
+    for path in unmerged_blobs:
+        list_of_blobs = unmerged_blobs[path]
+        for (stage, blob) in list_of_blobs:
+            # Now we can check each stage to see whether there were any conflicts
+            if stage != 0:
+                conflicted = True
+
+    return conflicted

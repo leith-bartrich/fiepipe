@@ -8,14 +8,14 @@ from fiepipelib.assetaspect.data.simpleapplication import AbstractSimpleApplicat
     AbstractSimpleApplicationInstallsManager
 from fiepipelib.assetaspect.routines.config import AspectConfigurationRoutines
 from fiepipelib.git.routines.lfs import InstallLFSRepo, Track
-from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedRoutines
+from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedInteractiveRoutines
 from fiepipelib.ui.abspath_input_ui import AbstractAbspathDefaultInputUI
 from fieui.FeedbackUI import AbstractFeedbackUI
 
 T = typing.TypeVar("T", bound=AbstractSimpleApplicationInstall)
 
 
-class AbstractSimpleApplicationInstallRoutines(AbstractLocalManagedRoutines[T]):
+class AbstractSimpleApplicationInstallInteractiveRoutines(AbstractLocalManagedInteractiveRoutines[T]):
     _path_input_ui: AbstractAbspathDefaultInputUI = None
 
     def __init__(self, feedback_ui: AbstractFeedbackUI, path_input_ui: AbstractAbspathDefaultInputUI):

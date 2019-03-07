@@ -1,11 +1,11 @@
 import abc
 import typing
 
-from fiepipelib.gitlabserver.routines.gitlabserver import GitLabManagedTypeRoutines, GitLabServerRoutines
+from fiepipelib.gitlabserver.routines.gitlabserver import GitLabManagedTypeInteractiveRoutines, GitLabServerRoutines
 from fiepipelib.gitlabserver.shell.gitlabserver import GitLabServerShell
 from fiepipelib.shells.AbstractShell import AbstractShell
 
-T = typing.TypeVar("T", bound=GitLabManagedTypeRoutines)
+T = typing.TypeVar("T", bound=GitLabManagedTypeInteractiveRoutines)
 
 
 class AbstractLocalManagedTypeCommand(AbstractShell, typing.Generic[T]):
@@ -84,7 +84,7 @@ class LocalManagedUserTypeCommand(AbstractLocalManagedTypeCommand[T], typing.Gen
     def do_delete_local(self,arg):
         """Deletes the worktree for this GitLab managed type source.
         Usage: delete_local"""
-        self.do_coroutine(self.get_routines().delete_local(self.get_server_username()))
+        self.do_coroutine(self.get_routines().delete_local_interactive_routine(self.get_server_username()))
 
 
 class LocalManagedGroupTypeCommand(AbstractLocalManagedTypeCommand[T], typing.Generic[T]):
@@ -186,4 +186,4 @@ class LocalManagedGroupTypeCommand(AbstractLocalManagedTypeCommand[T], typing.Ge
         if len(args) < 1:
             self.perror("No group specified.")
             return
-        self.do_coroutine(self.get_routines().delete_local(args[0]))
+        self.do_coroutine(self.get_routines().delete_local_interactive_routine(args[0]))

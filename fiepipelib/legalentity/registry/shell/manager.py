@@ -7,15 +7,15 @@ import fiepipelib.legalentity.registry.routines.registered_entity
 import fiepipelib.locallymanagedtypes.shells.AbstractLocalManagedTypeCommand
 import fiepipelib.localuser.routines.localuser
 import fiepipelib.storage
-from fiepipelib.legalentity.registry.routines.registered_entity import RegisteredEntityManagerRoutines
+from fiepipelib.legalentity.registry.routines.registered_entity import RegisteredEntityManagerInteractiveRoutines
 from fiepipelib.shells.AbstractShell import AbstractShell
 from fiepipelib.legalentity.registry.shell.legal_entity import LegalEntityShell
 from fiepipelib.legalentity.registry.data.registered_entity import RegisteredEntity
 class RegisteredEntitiesManagerCommand(
     fiepipelib.locallymanagedtypes.shells.AbstractLocalManagedTypeCommand.LocalManagedTypeCommand):
 
-    def get_routines(self) -> RegisteredEntityManagerRoutines:
-        return RegisteredEntityManagerRoutines(self.get_feedback_ui())
+    def get_routines(self) -> RegisteredEntityManagerInteractiveRoutines:
+        return RegisteredEntityManagerInteractiveRoutines(self.get_feedback_ui())
 
     def get_shell(self, item: RegisteredEntity) -> AbstractShell:
         ret = LegalEntityShell(item.get_fqdn(),self.get_user())

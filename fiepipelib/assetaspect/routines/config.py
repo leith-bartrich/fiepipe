@@ -3,28 +3,21 @@ import typing
 import git
 
 from fiepipelib.assetaspect.data.config import AspectConfiguration
+from fiepipelib.assetaspect.routines.autoconf import AutoConfigurationResult
 from fieui.FeedbackUI import AbstractFeedbackUI
 from fiepipelib.git.routines.ignore import AddIgnore, CheckCreateIgnore
 from fiepipelib.git.routines.lfs import InstallLFSRepo, Track, LFSIsInstalledRepo
 from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
-from fiepipelib.gitstorage.data.local_root_configuration import LocalRootConfiguration
-from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
-from enum import Enum
+from fiepipelib.gitstorage.routines.gitasset import GitAssetInteractiveRoutines
 from fiepipelib.enum import get_worse_enum
 
 T = typing.TypeVar("T", bound=AspectConfiguration)
-
-class AutoConfigurationResult(Enum):
-    NO_CHANGES = 1 #complete.  no changes made.
-    CHANGES_MADE = 2 #complete.  changes were made.
-    UNCLEAR = 3 #complete.  unclear if changes were made.
-    INTERVENTION_REQUIRED = 4 #incomplete.  user intervention required.
 
 
 class AspectConfigurationRoutines(typing.Generic[T]):
 
     _config: T = None
-    _asset_routines:GitAssetRoutines = None
+    _asset_routines:GitAssetInteractiveRoutines = None
 
     def get_configuration(self) -> T:
         return self._config
@@ -38,10 +31,10 @@ class AspectConfigurationRoutines(typing.Generic[T]):
     def get_working_asset(self) -> GitWorkingAsset:
         return GitWorkingAsset(self.get_asset_repo())
 
-    def get_asset_routines(self) -> GitAssetRoutines:
+    def get_asset_routines(self) -> GitAssetInteractiveRoutines:
         return self._asset_routines
 
-    def __init__(self, config:T,asset_routines:GitAssetRoutines):
+    def __init__(self, config:T, asset_routines:GitAssetInteractiveRoutines):
         self._config = config
         self._asset_routines = asset_routines
 

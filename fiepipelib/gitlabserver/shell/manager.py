@@ -1,7 +1,7 @@
 import typing
 
 from fiepipelib.gitlabserver.data.gitlab_server import GitLabServer
-from fiepipelib.gitlabserver.routines.manager import GitLabServerManagerRoutines
+from fiepipelib.gitlabserver.routines.manager import GitLabServerManagerInteractiveRoutines
 from fiepipelib.gitlabserver.shell.gitlab_hostname_input_ui import GitLabHostnameInputDefaultShellUI
 from fiepipelib.gitlabserver.shell.gitlab_username_input_ui import GitLabUsernameInputDefaultShellUI
 from fiepipelib.gitlabserver.shell.gitlabserver import GitLabServerShell
@@ -13,10 +13,10 @@ from fiepipelib.shells.variables.fqdn_var_command import FQDNVarCommand
 
 class GitLabServerManagerShell(LocalManagedTypeCommand[GitLabServer]):
 
-    def get_routines(self) -> GitLabServerManagerRoutines:
-        return GitLabServerManagerRoutines(feedback_ui=self.get_feedback_ui(),
-                                           hostname_input_default_ui=GitLabHostnameInputDefaultShellUI(self),
-                                           username_input_default_ui=GitLabUsernameInputDefaultShellUI(self))
+    def get_routines(self) -> GitLabServerManagerInteractiveRoutines:
+        return GitLabServerManagerInteractiveRoutines(feedback_ui=self.get_feedback_ui(),
+                                                      hostname_input_default_ui=GitLabHostnameInputDefaultShellUI(self),
+                                                      username_input_default_ui=GitLabUsernameInputDefaultShellUI(self))
 
     def get_shell(self, item: GitLabServer) -> AbstractShell:
         # no shell currently.  We call super instead.

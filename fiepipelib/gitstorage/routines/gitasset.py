@@ -6,21 +6,14 @@ import typing
 
 import git
 
-from fiepipelib.container.local_config.data.localcontainerconfiguration import LocalContainerConfigurationManager, \
-    LocalContainerConfiguration
-from fiepipelib.container.shared.data.container import LocalContainerManager, Container
 from fiepipelib.gitstorage.data.git_asset import GitAsset
-from fiepipelib.gitstorage.data.git_root import GitRoot, SharedGitRootsComponent
 from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
-from fiepipelib.gitstorage.data.local_root_configuration import LocalRootConfiguration, LocalRootConfigurationsComponent
-from fiepipelib.gitstorage.data.localstoragemapper import localstoragemapper
 from fiepipelib.gitstorage.routines.gitrepo import GitRepoRoutines
-from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
-from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
-
+from fiepipelib.gitstorage.routines.gitroot import GitRootRoutines
 
 class GitAssetRoutines(GitRepoRoutines):
+
     _container_id: str = None
     _root_id: str = None
     _asset_id: str = None
@@ -33,45 +26,50 @@ class GitAssetRoutines(GitRepoRoutines):
         self._asset_id = asset_id
         self._feedback_ui = feedback_ui
 
-    _user: LocalUserRoutines = None
-    _container: Container = None
-    _container_config: LocalContainerConfiguration = None
-    _root: GitRoot
-    _root_config: LocalRootConfiguration
-    _root_working_tree_path: str = None
+    _root_routines: GitRootRoutines
     _asset: GitAsset
     _working_asset: GitWorkingAsset
-    _relative_path: str = None
-    _abs_path: str = None
-
-    def get_repo(self) -> git.Repo:
-        return self._working_asset.GetRepo()
 
     def load(self):
-        plat = get_local_platform_routines()
-        self._user = LocalUserRoutines(plat)
-        container_manager = LocalContainerManager(self._user)
-        self._container = container_manager.GetByID(self._container_id)[0]
-        container_config_manager = LocalContainerConfigurationManager(self._user)
-        self._container_config = container_config_manager.GetByID(self._container_id)[0]
-        root_component = SharedGitRootsComponent(self._container)
-        root_component.Load()
-        self._root = root_component.get_by_id(self._root_id)
-        root_config_component = LocalRootConfigurationsComponent(self._container_config)
-        root_config_component.Load()
-        self._root_config = root_config_component.get_by_id(self._root_id)
-        self._asset = GitAsset(self._asset_id)
-        mapper = localstoragemapper(self._user)
-        for workingAsset in self._root_config.GetWorkingAssets(mapper, True):
-            if workingAsset.GetAsset().GetID() == self._asset_id:
-                self._working_asset = workingAsset
-        self._root_working_tree_path = self._root_config.GetRepo(mapper).working_tree_dir
-        self._abs_path = self._working_asset.GetSubmodule().abspath
-        self._relative_path = os.path.relpath(self._abs_path, self._root_working_tree_path)
+        self._root_routines = GitRootRoutines(self._container_id,self._root_id,self._feedback_ui)
+        self._root_routines.load()
+
+        self._asset = self._root_routines.get_asset(self._asset_id)
+        for working_asset in self._root_routines.root_config.GetWorkingAssets(self._root_routines.mapper, True):
+            if working_asset.GetAsset().GetID() == self._asset_id:
+                self._working_asset = working_asset
+
+    @property
+    def working_asset(self):
+        return self._working_asset
+
+    @property
+    def relative_path(self):
+        return os.path.relpath(self.abs_path, self.root_working_tree_path)
+
+    @property
+    def abs_path(self):
+        return self._working_asset.GetSubmodule().abspath
+
+    @property
+    def root(self):
+        return self._root_routines.root
+
+    @property
+    def root_config(self):
+        return self._root_routines.root_config
+
+    @property
+    def root_working_tree_path(self):
+        return self._root_routines.root_config.GetRepo(self._root_routines.mapper).working_tree_dir
 
     @property
     def container(self):
-        return self._container
+        return self._root_routines.container
+
+
+    def get_repo(self) -> git.Repo:
+        return self._working_asset.GetRepo()
 
     def get_sub_asset_routines(self) -> typing.List['GitAssetRoutines']:
         ret = []
@@ -199,27 +197,11 @@ class GitAssetRoutines(GitRepoRoutines):
 
         return True, "OK"
 
-    @property
-    def working_asset(self):
-        return self._working_asset
 
-    @property
-    def relative_path(self):
-        return self._relative_path
+class GitAssetInteractiveRoutines(GitAssetRoutines):
 
-    @property
-    def abs_path(self):
-        return self._abs_path
 
-    @property
-    def root(self):
-        return self._root
 
-    @property
-    def root_config(self):
-        return self._root_config
+    pass
 
-    @property
-    def root_working_tree_path(self):
-        return self._root_working_tree_path
 

@@ -23,6 +23,9 @@ C = typing.TypeVar("C", bound=AbstractComponent)
 class AbstractComponentCommand(AbstractShell, typing.Generic[C]):
     _container_shell: AbstractComponentContainerShell = None
 
+    def get_container_shell(self) -> AbstractComponentContainerShell:
+        return self._container_shell
+
     def __init__(self, container_shell: AbstractComponentContainerShell):
         self._container_shell = container_shell
         super().__init__()
@@ -123,7 +126,6 @@ class AbstractNamedListBoundComponentCommand(AbstractShell, typing.Generic[NLSC,
         for item in all_items:
             self.poutput(shared_component.item_to_name(item))
 
-
     complete_is_configured = item_names_complete
 
     def do_is_configured(self, args):
@@ -137,9 +139,9 @@ class AbstractNamedListBoundComponentCommand(AbstractShell, typing.Generic[NLSC,
             return
         routines = self.get_named_list_bound_component_routines()
         if routines.local_item_exists(args[0]):
-            self.poutput(self.colorize('yes','green'))
+            self.poutput(self.colorize('yes', 'green'))
         else:
-            self.poutput(self.colorize('no','yellow'))
+            self.poutput(self.colorize('no', 'yellow'))
 
     @abc.abstractmethod
     def get_shell(self, name) -> AbstractShell:
@@ -209,9 +211,3 @@ class AbstractNamedListBoundComponentCommand(AbstractShell, typing.Generic[NLSC,
         local_comp = routines.get_local_component().get_by_name(local_name)
         data = routines.get_local_component().ItemToJSONData(local_comp)
         self.print_json_data(data)
-
-
-
-
-
-

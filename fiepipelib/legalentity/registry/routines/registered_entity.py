@@ -4,10 +4,10 @@ import fiepipelib.fiepipeserver.client
 import fiepipelib.localplatform.routines.localplatform
 import fiepipelib.localuser.routines.localuser
 from fiepipelib.legalentity.registry.data.registered_entity import localregistry, RegisteredEntity
-from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedRoutines
+from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedInteractiveRoutines
 
 
-class RegisteredEntityManagerRoutines(AbstractLocalManagedRoutines[RegisteredEntity]):
+class RegisteredEntityManagerInteractiveRoutines(AbstractLocalManagedInteractiveRoutines[RegisteredEntity]):
 
     def GetManager(self) -> localregistry:
         plat = fiepipelib.localplatform.routines.localplatform.get_local_platform_routines()

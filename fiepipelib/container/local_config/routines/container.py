@@ -1,23 +1,22 @@
 from fiepipelib.container.local_config.data.localcontainerconfiguration import LocalContainerConfiguration, \
     LocalContainerConfigurationManager, config_from_parameters
 from fiepipelib.components.routines.component_container import ComponentContainerRoutines
-
+from fiepipelib.localuser.routines.localuser import get_local_user_routines
 
 class LocalContainerRoutines(ComponentContainerRoutines[LocalContainerConfiguration]):
+
     _container_id: str = None
-    _manager: LocalContainerConfigurationManager = None
 
     def get_manager(self):
-        return self._manager
+        return LocalContainerConfigurationManager(get_local_user_routines())
 
     _container: LocalContainerConfiguration = None
 
     def get_container(self) -> LocalContainerConfiguration:
         return self._container
 
-    def __init__(self, container_id: str, manager: LocalContainerConfigurationManager):
+    def __init__(self, container_id: str):
         self._container_id = container_id
-        self._manager = manager
 
     def commit(self):
         self.get_manager().Set([self.get_container()])

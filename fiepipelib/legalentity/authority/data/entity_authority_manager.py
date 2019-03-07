@@ -1,6 +1,6 @@
 import fiepipelib.locallymanagedtypes
 from fiepipelib.legalentity.authority.data.entity_authority import LegalEntityAuthority, FromJSONData, ToJSONData
-
+import typing
 
 class LegalEntityAuthorityManager(
     fiepipelib.locallymanagedtypes.data.abstractmanager.AbstractUserLocalTypeManager[LegalEntityAuthority]):
@@ -81,5 +81,5 @@ class LegalEntityAuthorityManager(
     def DeleteByFQDN(self, fqdn):
         self._Delete("fqdn", fqdn)
 
-    def GetByFQDN(self, fqdn):
+    def GetByFQDN(self, fqdn) -> typing.List[LegalEntityAuthority]:
         return self._Get([("fqdn", fqdn)])

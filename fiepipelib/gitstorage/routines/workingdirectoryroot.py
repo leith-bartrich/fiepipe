@@ -34,7 +34,7 @@ def PushRootToArchive(root, workingRoot, archiveVolume, localUser):
 
     remote = workingRepo.create_remote(archiveVolume.GetName(),archiveRepoPath)
     print("Pushing root to: " + archiveRepoPath)
-    remote.push("master")
+    remote.push_routine("master")
     workingRepo.delete_remote(remote.name)
 
 def PushRootToArchiveRecursive(root, workingRoot, archiveVolume, localUser):

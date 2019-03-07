@@ -5,17 +5,17 @@ import cmd2
 import fiepipelib.legalentity
 import fiepipelib.localuser
 import fiepipelib.shells
-from fiepipelib.legalentity.authority.routines.entity_authority import LegalEntityAuthorityManagerRoutines
+from fiepipelib.legalentity.authority.routines.entity_authority import LegalEntityAuthorityManagerInteractiveRoutines
 from fiepipelib.legalentity.authority.shell.entity_authority import Shell
-from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedRoutines
+from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedInteractiveRoutines
 from fiepipelib.locallymanagedtypes.shells.AbstractLocalManagedTypeCommand import LocalManagedTypeCommand, T
 from fiepipelib.shells.AbstractShell import AbstractShell
-from fiepipelib.legalentity.authority.routines.entity_authority import LegalEntityAuthorityManagerRoutines
+from fiepipelib.legalentity.authority.routines.entity_authority import LegalEntityAuthorityManagerInteractiveRoutines
 
 class Command(LocalManagedTypeCommand):
 
-    def get_routines(self) -> LegalEntityAuthorityManagerRoutines:
-        return LegalEntityAuthorityManagerRoutines(self.get_feedback_ui())
+    def get_routines(self) -> LegalEntityAuthorityManagerInteractiveRoutines:
+        return LegalEntityAuthorityManagerInteractiveRoutines(self.get_feedback_ui())
 
     def get_shell(self, item) -> AbstractShell:
         return Shell(item)

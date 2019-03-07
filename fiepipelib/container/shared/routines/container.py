@@ -1,11 +1,9 @@
-from fiepipelib.container.shared.data.container import Container, LocalContainerManager
-from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
-from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fiepipelib.components.routines.component_container import ComponentContainerRoutines
+from fiepipelib.container.shared.data.container import Container, LocalContainerManager
+from fiepipelib.localuser.routines.localuser import get_local_user_routines
 
 
 class ContainerRoutines(ComponentContainerRoutines[Container]):
-
     _id: str = None
 
     def get_id(self) -> str:
@@ -16,8 +14,7 @@ class ContainerRoutines(ComponentContainerRoutines[Container]):
         self._id = id
 
     def get_manager(self) -> LocalContainerManager:
-        plat = get_local_platform_routines()
-        user = LocalUserRoutines(plat)
+        user = get_local_user_routines()
         return LocalContainerManager(user)
 
     _container: Container = None

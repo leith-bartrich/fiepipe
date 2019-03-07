@@ -194,7 +194,7 @@ class GitRoot(object):
 class SharedGitRootsComponent(AbstractNamedItemListComponent[GitRoot]):
     """Component for managing GIT working directory roots within this container."""
 
-    def __init__(self, cont):
+    def __init__(self, cont: Container):
         assert isinstance(cont, Container)
         super().__init__(cont)
 
@@ -214,4 +214,4 @@ class SharedGitRootsComponent(AbstractNamedItemListComponent[GitRoot]):
         for item in self.GetItems():
             if item.GetID() == id:
                 return item
-        raise LookupError("no such id.")
+        raise LookupError("no such id: " + id)

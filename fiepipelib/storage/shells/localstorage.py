@@ -8,7 +8,7 @@ import fiepipelib.legalentity.authority.data.entity_authority
 import fiepipelib.encryption.public.privatekey
 import fiepipelib.shells.AbstractShell
 import fiepipelib.storage.localvolume
-from fiepipelib.storage.routines.localstorage import LocalStorageRoutines
+from fiepipelib.storage.routines.localstorage import LocalStorageInteractiveRoutines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 
 
@@ -16,7 +16,7 @@ class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
     _localUser = None
     _localStorageRoutines = None
 
-    def __init__(self, localUser: LocalUserRoutines, localStorage: LocalStorageRoutines):
+    def __init__(self, localUser: LocalUserRoutines, localStorage: LocalStorageInteractiveRoutines):
         super().__init__()
         self._localUser = localUser
         self._localStorageRoutines = localStorage
@@ -100,7 +100,7 @@ class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
 
         volume = volumes[0]
 
-        self.do_coroutine(self._localStorageRoutines.add_adjective_routine(volume))
+        self.do_coroutine(self._localStorageRoutines.add_adjective_interactive_routine(volume))
 
     complete_delete_adjective = local_volumes_complete
 
@@ -116,7 +116,7 @@ class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
             return
         volume = volumes[0]
 
-        self.do_coroutine(self._localStorageRoutines.do_delete_adjective_routine(volume))
+        self.do_coroutine(self._localStorageRoutines.do_delete_adjective_interactive_routine(volume))
 
     def external_volume_paths_complete(self, text, line, begidx, endidx):
 

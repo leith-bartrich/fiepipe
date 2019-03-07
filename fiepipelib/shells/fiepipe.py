@@ -11,10 +11,11 @@ import fiepipelib.shells.AbstractShell
 import fiepipelib.storage.shells.localstorage
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
-from fiepipelib.storage.routines.localstorage import LocalStorageRoutines
+from fiepipelib.storage.routines.localstorage import LocalStorageInteractiveRoutines
 from fiepipelib.storage.shells.ui.volumes import NewVolumeNameShellInputUI
 from fieuishell.ChoiceInputModalUI import ChoiceInputModalShellUI
-
+from fiepipelib.automanager.shell.automanager import AutoManagerShell
+from fiepipelib.gitlabserver.shell.manager import GitLabServerManagerShell
 
 class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
 
@@ -36,11 +37,13 @@ class Shell(fiepipelib.shells.AbstractShell.AbstractShell):
                          "legal_entites", ["le"])
         self.add_submenu(fiepipelib.legalentity.authority.shell.manager.Command(
             localUser), "legal_entity_authority", [])
-        local_storage_routines = LocalStorageRoutines(localUser, self.get_feedback_ui(),
-                                                      ChoiceInputModalShellUI[str](self),
-                                                      NewVolumeNameShellInputUI(self))
+        local_storage_routines = LocalStorageInteractiveRoutines(localUser, self.get_feedback_ui(),
+                                                                 ChoiceInputModalShellUI[str](self),
+                                                                 NewVolumeNameShellInputUI(self))
         self.add_submenu(fiepipelib.storage.shells.localstorage.Shell(localUser, local_storage_routines),
                          "local_storage", [])
+        self.add_submenu(AutoManagerShell(),"auto_manager",[])
+        self.add_submenu(GitLabServerManagerShell(),"gitlab_servers",[])
 
     def do_register_host(self, args):
         args = self.parse_arguments(args)

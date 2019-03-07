@@ -55,7 +55,7 @@ def PushToArchiveVolume(workingAsset, archiveVol, localUser):
     remote = wRepo.create_remote(archiveVol.GetName(),archiveRepoPath)
     workingTreeDir = wRepo.working_tree_dir()
     print("Pushing asset " + workingTreeDir + " to: " + archiveRepoPath)
-    remote.push()
+    remote.push_routine()
     wRepo.delete_remote(remote.name)
 
 

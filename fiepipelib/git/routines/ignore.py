@@ -3,7 +3,7 @@ import os
 import os.path
 import pathlib
 
-def CheckCreateIgnore(repo) -> bool:
+def CheckCreateIgnore(repo) -> (bool, str):
     """returns true if it already existed"""
     ret = True
     assert isinstance(repo, git.Repo)
@@ -16,14 +16,14 @@ def CheckCreateIgnore(repo) -> bool:
         print(".gitignore exists but is not a file.")
         raise FileNotFoundError(str(ignorePath.absolute()))
     repo.index.add([str(ignorePath.absolute())])
-    return ret
+    return ret, ignorePath
 
 def AddIgnore(repo, pattern:str, replace_slashes=True) -> bool:
     """returns true if a change was made."""
     if replace_slashes:
         pattern = pattern.replace('\\','/')
     assert isinstance(repo, git.Repo)
-    ignorePath = CheckCreateIgnore(repo)
+    change_made, ignorePath = CheckCreateIgnore(repo)
     with ignorePath.open() as f:
         lines = f.readlines()
     for line in lines:
@@ -39,7 +39,7 @@ def AddIgnore(repo, pattern:str, replace_slashes=True) -> bool:
 
 def RemoveIgnore(repo, pattern):
     assert isinstance(repo, git.Repo)
-    ignorePath = CheckCreateIgnore(repo)
+    change_made, ignorePath = CheckCreateIgnore(repo)
     with ignorePath.open() as f:
         lines = f.readlines()
     newlines = []
@@ -51,7 +51,7 @@ def RemoveIgnore(repo, pattern):
 
 def GetIgnores(repo):
     assert isinstance(repo, git.Repo)
-    ignorePath = CheckCreateIgnore(repo)
+    chage_made, ignorePath = CheckCreateIgnore(repo)
     with ignorePath.open() as f:
         lines = f.readlines()
     return lines

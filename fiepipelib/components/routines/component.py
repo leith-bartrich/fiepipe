@@ -42,7 +42,7 @@ class AbstractComponentRoutines(typing.Generic[CT]):
 I = typing.TypeVar("I")
 
 
-class AbstractItemListComponentRoutines(AbstractComponentRoutines[AbstractItemListComponent[I]], typing.Generic[I]):
+class AbstractItemListComponentInteractiveRoutines(AbstractComponentRoutines[AbstractItemListComponent[I]], typing.Generic[I]):
 
 
     @abc.abstractmethod
@@ -61,6 +61,11 @@ class AbstractItemListComponentRoutines(AbstractComponentRoutines[AbstractItemLi
 
 class AbstractNamedItemListComponentRoutines(AbstractComponentRoutines[AbstractNamedItemListComponent[I]], typing.Generic[I]):
 
+    def get_named_item(self,name:str) -> I:
+        return self.get_component().get_by_name(name)
+
+class AbstractNamedItemListComponentInteractiveRoutines(AbstractNamedItemListComponentRoutines[I]):
+
 
     @abc.abstractmethod
     async def create_empty_item(self, name:str) -> I:
@@ -76,5 +81,3 @@ class AbstractNamedItemListComponentRoutines(AbstractComponentRoutines[AbstractN
         await self.update_item(item, name)
         return item
 
-    def get_named_item(self,name:str) -> I:
-        return self.get_component().get_by_name(name)

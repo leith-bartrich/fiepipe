@@ -2,8 +2,8 @@ import sys
 import typing
 
 from fiepipelib.container.shared.data.container import Container
-from fiepipelib.container.shared.routines.manager import AbstractContainerManagementRoutines, \
-    FQDNContainerManagementRoutines, AllContainerManagementRoutines
+from fiepipelib.container.shared.routines.manager import AbstractContainerManagementInteractiveRoutines, \
+    FQDNContainerManagementInteractiveRoutines, AllContainerManagementInteractiveRoutines
 from fiepipelib.container.shells.container import ContainerShell
 from fiepipelib.locallymanagedtypes.shells.AbstractLocalManagedTypeCommand import LocalManagedTypeCommand
 from fiepipelib.shells.AbstractShell import AbstractShell
@@ -26,13 +26,13 @@ class ContainerManagerCommand(LocalManagedTypeCommand[Container]):
         super().__init__()
         self.add_variable_command(fqdn_var_command, "fqdn", [], False)
 
-    def get_routines(self) -> AbstractContainerManagementRoutines:
+    def get_routines(self) -> AbstractContainerManagementInteractiveRoutines:
         if self._fqdn_var_command.is_any():
-            return AllContainerManagementRoutines(feedback_ui=self.get_feedback_ui(),
-                                                  desc_input_ui=DescriptionInputUI(self))
+            return AllContainerManagementInteractiveRoutines(feedback_ui=self.get_feedback_ui(),
+                                                             desc_input_ui=DescriptionInputUI(self))
         else:
-            return FQDNContainerManagementRoutines(fqdn=self.get_fqdn(), feedback_ui=self.get_feedback_ui(),
-                                                   desc_input_ui=DescriptionInputUI(self))
+            return FQDNContainerManagementInteractiveRoutines(fqdn=self.get_fqdn(), feedback_ui=self.get_feedback_ui(),
+                                                              desc_input_ui=DescriptionInputUI(self))
 
     def get_shell(self, item: Container) -> AbstractShell:
         cnt_var = ContainerIDVariableCommand(item.GetID())

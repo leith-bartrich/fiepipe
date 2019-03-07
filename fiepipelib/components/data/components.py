@@ -179,6 +179,13 @@ class AbstractNamedItemListComponent(AbstractItemListComponent[NT], typing.Gener
         except LookupError:
             pass
 
+    def get_names(self) -> typing.List[str]:
+        ret = []
+        items = self.GetItems()
+        for item in items:
+            ret.append(self.item_to_name(item))
+        return ret
+
 
 V = typing.TypeVar("V")
 

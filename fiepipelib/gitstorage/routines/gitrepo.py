@@ -1,23 +1,18 @@
 import abc
 import typing
-from abc import ABCMeta, abstractmethod
 
 import git
-import pkg_resources
-
-from fiepipelib.git.routines.lfs import Track
 
 
-class GitRepoRoutines(object, metaclass=ABCMeta):
+class GitRepoRoutines(abc.ABC):
 
     @abc.abstractmethod
     def get_repo(self) -> git.Repo:
         raise NotImplementedError()
 
-    @abc.abstractmethod
-    def load(self):
-        raise NotImplementedError()
-
+    # @abc.abstractmethod
+    # def load(self):
+    #     raise NotImplementedError()
 
     @abc.abstractmethod
     def can_commit(self) -> (bool, str):
@@ -76,6 +71,23 @@ class GitRepoRoutines(object, metaclass=ABCMeta):
         repo = self.get_repo()
         self._add_submodules_recursive(repo)
 
-    @abstractmethod
+    @abc.abstractmethod
     def check_create_change_dir(self):
-        pass
+        raise NotImplementedError()
+
+    def is_in_conflict(self) -> bool:
+        repo = self.get_repo()
+
+        # checking for conflicts
+        unmerged_blobs = repo.index.unmerged_blobs()
+
+        conflicted = False
+
+        for path in unmerged_blobs:
+            list_of_blobs = unmerged_blobs[path]
+            for (stage, blob) in list_of_blobs:
+                # Now we can check each stage to see whether there were any conflicts
+                if stage != 0:
+                    conflicted = True
+
+        return conflicted

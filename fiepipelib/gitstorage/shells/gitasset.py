@@ -5,7 +5,7 @@ import typing
 import sys
 
 from fiepipelib.container.shells.container_id_var_command import ContainerIDVariableCommand
-from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
+from fiepipelib.gitstorage.routines.gitasset import GitAssetInteractiveRoutines
 from fiepipelib.gitstorage.shells.gitrepo import GitRepoShell
 from fiepipelib.gitstorage.shells.vars.asset_id import AssetIDVarCommand
 from fiepipelib.gitstorage.shells.vars.root_id import RootIDVarCommand
@@ -51,9 +51,9 @@ class Shell(GitRepoShell):
         #self.do_coroutine(routines.update_lfs_track_patterns())
 
 
-    def get_routines(self) -> GitAssetRoutines:
-        return GitAssetRoutines(self._container_id_var.get_value(), self._root_id_var.get_value(),
-                                self._asset_id_var.get_value(), feedback_ui=self.get_feedback_ui())
+    def get_routines(self) -> GitAssetInteractiveRoutines:
+        return GitAssetInteractiveRoutines(self._container_id_var.get_value(), self._root_id_var.get_value(),
+                                           self._asset_id_var.get_value(), feedback_ui=self.get_feedback_ui())
 
     def get_plugin_names_v1(self) -> typing.List[str]:
         ret = super().get_plugin_names_v1()
@@ -63,7 +63,7 @@ class Shell(GitRepoShell):
     def get_prompt_text(self) -> str:
         routines = self.get_routines()
         routines.load()
-        fqdn = routines.container.GetFQDN()
+        fqdn = routines.container.get_fqdn()
         container_name = routines.container.GetShortName()
         relpath = routines.relative_path
         relpath = relpath.replace("\\", "/")

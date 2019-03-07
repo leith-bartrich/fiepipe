@@ -10,13 +10,14 @@ from fiepipelib.git.routines.submodules import CreateEmpty as CreateEmptySubmodu
     CreateFromSubDirectory as CreateSubmoduleFromSubDirectory
 from fiepipelib.gitlabserver.routines.gitlabserver import GitLabServerRoutines
 from fiepipelib.gitstorage.data.git_asset import NewID as NewAssetID
-from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
+from fiepipelib.gitstorage.routines.gitasset import GitAssetInteractiveRoutines
 from fiepipelib.gitstorage.routines.gitlab_server import GitLabFQDNGitRootRoutines, GitLabFQDNGitAssetRoutines
-from fiepipelib.gitstorage.routines.gitroot import GitRootRoutines
+from fiepipelib.gitstorage.routines.gitroot import GitRootInteractiveRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
 from enum import Enum
 from fiepipelib.enum import get_worse_enum
-from fiepipelib.assetaspect.routines.config import AutoConfigurationResult
+from fiepipelib.assetaspect.routines.autoconf import AutoConfigurationResult
+
 
 class AbstractPath(abc.ABC):
     """A static path. Not a parent, not a child. Not dynamic. Not a subdirectory. Just an abtract path. Might be leaf
@@ -269,14 +270,14 @@ class AbstractGitStorageBasePath(AbstractDirPath, abc.ABC):
 
 class AbstractRootBasePath(AbstractGitStorageBasePath):
     """A basepath based on a git storage root"""
-    _root_routines: GitRootRoutines = None
+    _root_routines: GitRootInteractiveRoutines = None
 
     def get_routines(self):
         """Gets GitRootRoutines"""
         return self._root_routines
 
     def get_fqdn(self) -> str:
-        return self.get_routines().container.GetFQDN()
+        return self.get_routines().container.get_fqdn()
 
     def get_container_id(self) -> str:
         return self.get_routines().container.GetID()
@@ -284,7 +285,7 @@ class AbstractRootBasePath(AbstractGitStorageBasePath):
     def get_root_id(self) -> str:
         return self.get_routines().root.GetID()
 
-    def __init__(self, gitlab_server_name: str, routines: GitRootRoutines):
+    def __init__(self, gitlab_server_name: str, routines: GitRootInteractiveRoutines):
         self._root_routines = routines
         super().__init__(gitlab_server_name)
 
@@ -319,14 +320,14 @@ class AbstractRootBasePath(AbstractGitStorageBasePath):
 
 class AbstractAssetBasePath(AbstractGitStorageBasePath):
     """A base-path for a git storage asset."""
-    _asset_routines: GitAssetRoutines
+    _asset_routines: GitAssetInteractiveRoutines
 
     def get_routines(self):
         """Gets the GitAssetRoutines"""
         return self._asset_routines
 
     def get_fqdn(self) -> str:
-        return self.get_routines().container.GetFQDN()
+        return self.get_routines().container.get_fqdn()
 
     def get_container_id(self) -> str:
         return self.get_routines().container.GetID()
@@ -338,7 +339,7 @@ class AbstractAssetBasePath(AbstractGitStorageBasePath):
         """Gets the asset_id of the git asset at this base-path"""
         return self.get_asset_id()
 
-    def __init__(self, gitlab_server_name: str, routines: GitAssetRoutines):
+    def __init__(self, gitlab_server_name: str, routines: GitAssetInteractiveRoutines):
         self._asset_routines = routines
         super().__init__(gitlab_server_name)
 
@@ -349,7 +350,7 @@ class AbstractAssetBasePath(AbstractGitStorageBasePath):
         """Gets GitLabFQDNGitAssetRooutines for this root."""
         gitlab_server_routines = GitLabServerRoutines(self.get_gitlab_server_name())
         asset_routines = self.get_routines()
-        return GitLabFQDNGitAssetRoutines(gitlab_server_routines,asset_routines.working_asset,asset_routines.container.GetFQDN())
+        return GitLabFQDNGitAssetRoutines(gitlab_server_routines, asset_routines.working_asset, asset_routines.container.get_fqdn())
 
 
 
@@ -402,7 +403,7 @@ class AssetsStaticSubDir(StaticSubDir):
                 submods[submod_dirname] = submod
         return submods
 
-    def get_asset_routines_by_dirname(self, feedback_ui: AbstractFeedbackUI, dirname: str) -> GitAssetRoutines:
+    def get_asset_routines_by_dirname(self, feedback_ui: AbstractFeedbackUI, dirname: str) -> GitAssetInteractiveRoutines:
         """Gets an instance of GitAssetRoutines for a specific named sub-asset.
         Typically, you'll use get_submodules to get a named list, and then use the name to get the Routines.
         It's always possible someone deleted the asset in the interim, resulting in an exception throw."""
@@ -412,8 +413,8 @@ class AssetsStaticSubDir(StaticSubDir):
         submod = submods[dirname]
         base_path = self.get_base_static_path()
         assert isinstance(base_path, AbstractGitStorageBasePath)
-        return GitAssetRoutines(container_id=base_path.get_container_id(), root_id=base_path.get_root_id(),
-                                asset_id=submod.name, feedback_ui=feedback_ui)
+        return GitAssetInteractiveRoutines(container_id=base_path.get_container_id(), root_id=base_path.get_root_id(),
+                                           asset_id=submod.name, feedback_ui=feedback_ui)
 
     async def create_new_empty_asset_routine(self, feedback_ui: AbstractFeedbackUI, dirname: str):
         """Creates a new empty asset with a new id at the given directory name.
@@ -584,7 +585,7 @@ class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath, abc.ABC):
         #ahead and not behind, is a push.
         if is_ahead and not is_behind:
             await feedback_ui.output("Desktop asset " + asset_routines.container.GetShortName() + "/" +asset_routines.root.GetName() + "/" + asset_routines.relative_path + "is ahead and clean, and will be pushed.")
-            await gitlab_asset_routines.push(feedback_ui)
+            await gitlab_asset_routines.push_routine(feedback_ui)
             return get_worse_enum(ret,AutoUpdateResults.UP_TO_DATE_CLEAN)
 
         #any pull could leave us conflicted.  If we are left conflicted, that's handled the next time we auto-update.
@@ -592,13 +593,13 @@ class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath, abc.ABC):
         #behind, is a pull.
         if not is_ahead and is_behind:
             await feedback_ui.output("Desktop asset " + asset_routines.container.GetShortName() + "/" +asset_routines.root.GetName() + "/" + asset_routines.relative_path + "is behind but clean, and will be pulled.")
-            await gitlab_asset_routines.pull(feedback_ui)
+            await gitlab_asset_routines.pull_routine(feedback_ui)
             return get_worse_enum(ret,AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
 
         #ahead and behind is a pull.
         if is_ahead and is_behind:
             await feedback_ui.output("Desktop asset " + asset_routines.container.GetShortName() + "/" +asset_routines.root.GetName() + "/" + asset_routines.relative_path + "is behind and ahead, but clean, and will be pulled.")
-            await gitlab_asset_routines.pull(feedback_ui)
+            await gitlab_asset_routines.pull_routine(feedback_ui)
             return get_worse_enum(ret,AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
 
         #if we got here, most likely, we're up to date and clean.
@@ -680,7 +681,7 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath, abc.ABC):
         #ahead and not behind, is a push.
         if is_ahead and not is_behind:
             await feedback_ui.output("Desktop root " + root_routines.container.GetShortName() + "/" + root_routines.root.GetName() + "is ahead and clean, and will be pushed.")
-            await gitlab_root_routines.push(feedback_ui)
+            await gitlab_root_routines.push_routine(feedback_ui)
             return get_worse_enum(ret,AutoUpdateResults.UP_TO_DATE_CLEAN)
 
         #any pull could leave us conflicted.  If we are left conflicted, that's handled the next time we auto-update.
@@ -688,13 +689,13 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath, abc.ABC):
         #behind, is a pull.
         if not is_ahead and is_behind:
             await feedback_ui.output("Desktop root " + root_routines.container.GetShortName() + "/" + root_routines.root.GetName() + "is behind but clean, and will be pulled.")
-            await gitlab_root_routines.pull(feedback_ui)
+            await gitlab_root_routines.pull_routine(feedback_ui)
             return get_worse_enum(ret,AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
 
         #ahead and behind is a pull.
         if is_ahead and is_behind:
             await feedback_ui.output("Desktop root " + root_routines.container.GetShortName() + "/" + root_routines.root.GetName() + "is behind and ahead, but clean, and will be pulled.")
-            await gitlab_root_routines.pull(feedback_ui)
+            await gitlab_root_routines.pull_routine(feedback_ui)
             return get_worse_enum(ret,AutoUpdateResults.PENDING) #we won't know if we're up to date until the next run.
 
         #if we got here, most likely, we're up to date and clean.

@@ -1,15 +1,15 @@
 import typing
 
-from fiepipelib.container.shared.routines.gitlabserver import GitlabManagedContainerRoutines
+from fiepipelib.container.shared.routines.gitlabserver import GitlabManagedContainerInteractiveRoutines
 from fiepipelib.container.shells.description_input_ui import DescriptionInputUI
-from fiepipelib.container.shells.manager import AllContainerManagementRoutines, FQDNContainerManagementRoutines
+from fiepipelib.container.shells.manager import AllContainerManagementInteractiveRoutines, FQDNContainerManagementInteractiveRoutines
 from fiepipelib.gitlabserver.shell.gitlabserver import GitLabServerShell
 from fiepipelib.gitlabserver.shell.locally_managed_type import LocalManagedGroupTypeCommand, LocalManagedUserTypeCommand
 from fiepipelib.shells.ui.fqdn_input_ui import FQDNInputUI
 from fiepipelib.shells.variables.fqdn_var_command import FQDNVarCommand
 
 
-class UserContainersCommand(LocalManagedUserTypeCommand[GitlabManagedContainerRoutines]):
+class UserContainersCommand(LocalManagedUserTypeCommand[GitlabManagedContainerInteractiveRoutines]):
     _fqdn_var_command: FQDNVarCommand = None
 
     def __init__(self, server_shell: GitLabServerShell, fqdn_var_command: FQDNVarCommand):
@@ -22,24 +22,23 @@ class UserContainersCommand(LocalManagedUserTypeCommand[GitlabManagedContainerRo
         ret.append('containers.gitlab.user.command')
         return ret
 
-    def get_routines(self) -> GitlabManagedContainerRoutines:
+    def get_routines(self) -> GitlabManagedContainerInteractiveRoutines:
         server_routines = self.get_server_shell().get_server_routines()
         if self._fqdn_var_command.is_any():
-            local_manager_routines = AllContainerManagementRoutines(self.get_feedback_ui(), DescriptionInputUI(self),
-                                                                    FQDNInputUI(self))
+            local_manager_routines = AllContainerManagementInteractiveRoutines(self.get_feedback_ui(), DescriptionInputUI(self),
+                                                                               FQDNInputUI(self))
         else:
-            local_manager_routines = FQDNContainerManagementRoutines(self._fqdn_var_command.get_value(),
-                                                                     self.get_feedback_ui(),
-                                                                     DescriptionInputUI(self))
-        return GitlabManagedContainerRoutines(server_routines, local_manager_routines, self.get_feedback_ui(),
-                                              self.get_true_false_default_question_modal_ui())
+            local_manager_routines = FQDNContainerManagementInteractiveRoutines(self._fqdn_var_command.get_value(),
+                                                                                self.get_feedback_ui(),
+                                                                                DescriptionInputUI(self))
+        return GitlabManagedContainerInteractiveRoutines(local_manager_routines, server_routines)
 
     def get_prompt_text(self) -> str:
         return self.prompt_separator.join(
             ['GitLabServer', 'containers', self.get_server_shell().get_server_name(), self.get_server_username()])
 
 
-class GroupContainersCommand(LocalManagedGroupTypeCommand[GitlabManagedContainerRoutines]):
+class GroupContainersCommand(LocalManagedGroupTypeCommand[GitlabManagedContainerInteractiveRoutines]):
     _fqdn_var_command: FQDNVarCommand = None
 
     def __init__(self, server_shell: GitLabServerShell, fqdn_var_command: FQDNVarCommand):
@@ -52,16 +51,16 @@ class GroupContainersCommand(LocalManagedGroupTypeCommand[GitlabManagedContainer
         ret.append('containers.gitlab.group.command')
         return ret
 
-    def get_routines(self) -> GitlabManagedContainerRoutines:
+    def get_routines(self) -> GitlabManagedContainerInteractiveRoutines:
         server_routines = self.get_server_shell().get_server_routines()
         if self._fqdn_var_command.is_any():
-            local_manager_routines = AllContainerManagementRoutines(self.get_feedback_ui(), DescriptionInputUI(self),
-                                                                    FQDNInputUI(self))
+            local_manager_routines = AllContainerManagementInteractiveRoutines(self.get_feedback_ui(), DescriptionInputUI(self),
+                                                                               FQDNInputUI(self))
         else:
-            local_manager_routines = FQDNContainerManagementRoutines(self._fqdn_var_command.get_value(),
-                                                                     self.get_feedback_ui(),
-                                                                     DescriptionInputUI(self))
-        return GitlabManagedContainerRoutines(server_routines, local_manager_routines, feedback_ui=self.get_feedback_ui(), true_false_default_ui=self.get_true_false_default_question_modal_ui())
+            local_manager_routines = FQDNContainerManagementInteractiveRoutines(self._fqdn_var_command.get_value(),
+                                                                                self.get_feedback_ui(),
+                                                                                DescriptionInputUI(self))
+        return GitlabManagedContainerInteractiveRoutines(self.get_feedback_ui(), local_manager_routines, server_routines)
 
     def get_prompt_text(self) -> str:
         return self.prompt_separator.join(

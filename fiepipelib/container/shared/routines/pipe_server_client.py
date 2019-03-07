@@ -2,16 +2,16 @@ import typing
 
 import fiepipelib.container
 import fiepipelib.fiepipeserver
-from fiepipelib.container.shared.routines.manager import AbstractContainerManagementRoutines
+from fiepipelib.container.shared.routines.manager import AbstractContainerManagementInteractiveRoutines
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 
 
 class ContainerPipeServerRoutines(object):
 
-    _container_manager_routines: AbstractContainerManagementRoutines = None
+    _container_manager_routines: AbstractContainerManagementInteractiveRoutines = None
 
-    def __init__(self, container_manager_routines:AbstractContainerManagementRoutines):
+    def __init__(self, container_manager_routines:AbstractContainerManagementInteractiveRoutines):
 
         self._container_manager_routines = container_manager_routines
 

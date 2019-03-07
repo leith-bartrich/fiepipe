@@ -7,10 +7,10 @@ import typing
 
 import git
 
-from fiepipelib.git.routines.remote import create_update_remote, get_commits_behind, get_commits_ahead
-from fiepipelib.git.routines.repo import RepoExists, DeleteLocalRepo
+from fiepipelib.git.routines.remote import create_update_remote, get_commits_behind, get_commits_ahead, exists
+from fiepipelib.git.routines.repo import RepoExists, DeleteLocalRepo, is_in_conflict
 from fiepipelib.gitlabserver.data.gitlab_server import GitLabServer, GitLabServerManager
-from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedRoutines
+from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedInteractiveRoutines
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
@@ -73,7 +73,7 @@ class GitLabServerRoutines(object):
         return "fiepipe." + fqdn
 
 
-T = typing.TypeVar("T", bound=AbstractLocalManagedRoutines)
+T = typing.TypeVar("T", bound=AbstractLocalManagedInteractiveRoutines)
 
 
 class GitLabGitStorageRoutines(abc.ABC):
@@ -97,7 +97,7 @@ class GitLabGitStorageRoutines(abc.ABC):
     def get_local_repo_path(self) -> str:
         raise NotImplementedError()
 
-    async def pull(self, feedback_ui: AbstractFeedbackUI):
+    async def pull_sub_routine(self, feedback_ui: AbstractFeedbackUI, branch: str) -> bool:
 
         server = self.get_server_routines().get_server()
         local_repo_path = self.get_local_repo_path()
@@ -109,14 +109,23 @@ class GitLabGitStorageRoutines(abc.ABC):
             repo = git.Repo(local_repo_path)
             remote = create_update_remote(repo, "origin", remote_url)
             remote = create_update_remote(repo, server.get_name(), remote_url)
-            await feedback_ui.output(("Pulling from master: " + local_repo_path + " <- " + remote_url))
-            remote.pull("master")
+            assert isinstance(remote, git.Remote)
+            await feedback_ui.output(("Pulling " + branch + ": " + local_repo_path + " <- " + remote_url))
+            remote.pull(branch)
+            return True
         else:
-            await feedback_ui.error("Repository doesn't exist.  Cannot pull.  You might want to clone it or init it?")
-            return
+            await feedback_ui.error(
+                "Local repository doesn't exist.  Cannot pull.  You might want to clone it or init it?")
+            return False
 
-    async def push(self, feedback_ui: AbstractFeedbackUI):
+    async def pull_routine(self, feedback_ui: AbstractFeedbackUI):
 
+        await self.pull_sub_routine(feedback_ui)
+
+    async def push_sub_routine(self, feedback_ui: AbstractFeedbackUI, branch: str, fail_on_dirty: bool) -> bool:
+        """Meant to be called by other routines.
+        Provides feedback.
+        Returns True on success, False on failure."""
         server = self.get_server_routines().get_server()
         remote_url = self.get_remote_url()
         local_path = self.get_local_repo_path()
@@ -125,19 +134,44 @@ class GitLabGitStorageRoutines(abc.ABC):
 
         if not RepoExists(local_path):
             await feedback_ui.error("No local worktree.  You might need to create or pull it first.")
-            return
+            return False
 
         repo = git.Repo(local_path)
 
-        if repo.is_dirty(untracked_files=True):
-            await feedback_ui.error("Worktree is dirty or has untracked files.  Aborting.")
-            return
+        if repo.is_dirty(index=True, working_tree=True, untracked_files=True, submodules=True) and fail_on_dirty:
+            await feedback_ui.error("Worktree is dirty.  Aborting.")
+            return False
 
         # we push to the server even if there was no commit because this is a "push" command.
         # this works for submodules too, we think.  Maybe?
+
         remote = create_update_remote(repo, server.get_name(), remote_url)
-        await feedback_ui.output("Pushing to master: " + local_path + " -> " + remote_url)
-        remote.push("master")
+        assert isinstance(remote, git.Remote)
+        await feedback_ui.output("Pushing " + branch + ": " + local_path + " -> " + remote_url)
+        remote.push(branch)
+        return True
+
+    async def push_routine(self, feedback_ui: AbstractFeedbackUI):
+        """Meant to be called direclty by the user.  Dosen't throw on failure."""
+        success = await self.push_sub_routine(feedback_ui, "master", True)
+
+    async def remote_exists(self, feedback_ui: AbstractFeedbackUI) -> bool:
+        server = self.get_server_routines().get_server()
+        remote_url = self.get_remote_url()
+        local_path = self.get_local_repo_path()
+
+        repo = git.Repo(local_path)
+        server_name = server.get_name()
+
+        await feedback_ui.output("Updating remote " + server_name + " to: " + remote_url)
+        create_update_remote(repo, server_name, remote_url)
+
+        ret = exists(repo, server_name)
+        if ret:
+            await feedback_ui.output("Remote exists.")
+        else:
+            await feedback_ui.output("Remote doesn't exist.")
+        return ret
 
     async def is_behind_remote(self, feedback_ui: AbstractFeedbackUI) -> bool:
 
@@ -153,7 +187,13 @@ class GitLabGitStorageRoutines(abc.ABC):
 
         commits_behind = get_commits_behind(repo, "master", server_name)
 
-        return len(commits_behind) != 0
+        ret =  len(commits_behind) != 0
+        if ret:
+            await feedback_ui.output("Local is behind Remote")
+        else:
+            await feedback_ui.output("Local is up to date.")
+        return ret
+
 
     async def is_aheadof_remote(self, feedback_ui: AbstractFeedbackUI) -> bool:
 
@@ -169,40 +209,27 @@ class GitLabGitStorageRoutines(abc.ABC):
 
         commits_ahead = get_commits_ahead(repo, "master", server_name)
 
-        return len(commits_ahead) != 0
+        ret = len(commits_ahead) != 0
 
+        if ret:
+            await feedback_ui.output("Local is ahead of Remote")
+        else:
+            await feedback_ui.output("Remote is not behind")
+        return ret
 
 class GitLabManagedTypeRoutines(typing.Generic[T]):
-    """Abstract Routines for sharing Local Managed Types through GitLab.
-
-    The scope of the locally managed types comes from the local type manager returned from the
-    'get_locally_managed_routines' method.
-
-    e.g. if the manager is FQDN scoped, then pushes will automatically by FQDN scoped
-    because a call to "getall" in the manager will automatically enforce the scope.  Similarly, a
-    find by name will also be scoped by the manager.
-    """
-
-    _true_false_default_ui: AbstractModalTrueFalseDefaultQuestionUI = None
-
-    def get_true_false_default_ui(self):
-        return self._true_false_default_ui
-
+    server_routines: GitLabServerRoutines = None
     _feedback_ui: AbstractFeedbackUI = None
+
+    def __init__(self, feedback_ui: AbstractFeedbackUI, server_routines: GitLabServerRoutines):
+        self.server_routines = server_routines
+        self._feedback_ui = feedback_ui
 
     def get_feedback_ui(self):
         return self._feedback_ui
 
-    server_routines: GitLabServerRoutines = None
-
     def get_server_routines(self):
         return self.server_routines
-
-    def __init__(self, server_routines: GitLabServerRoutines,
-                 true_false_default_ui: AbstractModalTrueFalseDefaultQuestionUI, feedback_ui: AbstractFeedbackUI):
-        self.server_routines = server_routines
-        self._true_false_default_ui = true_false_default_ui
-        self._feedback_ui = feedback_ui
 
     @abc.abstractmethod
     def get_typename(self) -> str:
@@ -259,8 +286,11 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
         if RepoExists(local_path):
             repo = git.Repo(local_path)
             remote = create_update_remote(repo, server.get_name(), server_url)
+            await self.get_feedback_ui().output("Pulling from: " + server_url)
             remote.pull("master")
+            # TODO: check for conflicsts?  What happens if conflicted?
         else:
+            await self.get_feedback_ui().output("Cloning from: " + server_url)
             git.Repo.clone_from(server_url, local_path)
 
         manager_routines = self.get_local_manager_routines()
@@ -307,6 +337,14 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
         remote = create_update_remote(repo, server.get_name(), server_url)
         remote.push("master")
 
+    def is_conflicted(self, group_name: str) -> bool:
+        server = self.get_server_routines().get_server()
+        local_path = self.get_server_routines().local_path_for_type_registry(server.get_name(), group_name,
+                                                                             self.get_typename())
+        if RepoExists(local_path):
+            repo = git.Repo(local_path)
+            return is_in_conflict(repo)
+
     async def pull_routine(self, group_name: str, itemNames: typing.List[str]):
         server = self.get_server_routines().get_server()
         server_url = self.get_server_routines().remote_path_for_entity_registry(group_name=group_name,
@@ -319,7 +357,7 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
                 await self.get_feedback_ui().error("Worktree is dirty.  Aborting.")
                 return
             remote = create_update_remote(repo, server.get_name(), server_url)
-            remote.pull("master")
+            remote.pull_routine("master")
         else:
             git.Repo.clone_from(server_url, local_path)
 
@@ -327,24 +365,6 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
 
         for itemName in itemNames:
             await manager_routines.ImportRoutine(os.path.join(local_path, itemName + ".json"))
-
-    async def delete_local(self, group_name: str):
-        server = self.get_server_routines().get_server()
-        local_path = self.get_server_routines().local_path_for_type_registry(server.get_name(), group_name,
-                                                                             self.get_typename())
-        if RepoExists(local_path):
-            repo = git.Repo(local_path)
-            if repo.is_dirty(untracked_files=True):
-                answer = await self.get_true_false_default_ui().execute("Worktree is dirty. Delete anyway?", "Y", "N",
-                                                                        "C", False)
-                if answer:
-                    del (repo)
-                    DeleteLocalRepo(local_path)
-            else:
-                del (repo)
-                DeleteLocalRepo(local_path)
-        else:
-            DeleteLocalRepo(local_path)
 
     async def init_local(self, group_name: str):
         server = self.get_server_routines().get_server()
@@ -356,3 +376,55 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
 
         os.makedirs(local_path, exist_ok=True)
         git.Repo.init(local_path)
+
+    async def delete_local(self, group_name: str, fail_on_dirty=False) -> bool:
+        """Returns true of deleted or not there.  False if deletion failed."""
+        server = self.get_server_routines().get_server()
+        local_path = self.get_server_routines().local_path_for_type_registry(server.get_name(), group_name,
+                                                                             self.get_typename())
+        if RepoExists(local_path):
+            repo = git.Repo(local_path)
+            if repo.is_dirty(untracked_files=True):
+                if not fail_on_dirty:
+                    del (repo)
+                    DeleteLocalRepo(local_path)
+                    return True
+                else:
+                    return False
+            else:
+                del (repo)
+                DeleteLocalRepo(local_path)
+                return True
+        else:
+            DeleteLocalRepo(local_path)
+            return True
+
+
+class GitLabManagedTypeInteractiveRoutines(GitLabManagedTypeRoutines[T]):
+    """Abstract Routines for sharing Local Managed Types through GitLab.
+
+    The scope of the locally managed types comes from the local type manager returned from the
+    'get_locally_managed_routines' method.
+
+    e.g. if the manager is FQDN scoped, then pushes will automatically by FQDN scoped
+    because a call to "getall" in the manager will automatically enforce the scope.  Similarly, a
+    find by name will also be scoped by the manager.
+    """
+
+    async def delete_local_interactive_routine(self, group_name: str,
+                                               dirty_ui: AbstractModalTrueFalseDefaultQuestionUI):
+        server = self.get_server_routines().get_server()
+        local_path = self.get_server_routines().local_path_for_type_registry(server.get_name(), group_name,
+                                                                             self.get_typename())
+        if RepoExists(local_path):
+            repo = git.Repo(local_path)
+            if repo.is_dirty(untracked_files=True):
+                answer = await dirty_ui.execute("Worktree is dirty. Delete anyway?", "Y", "N", "C", False)
+                if answer:
+                    del (repo)
+                    DeleteLocalRepo(local_path)
+            else:
+                del (repo)
+                DeleteLocalRepo(local_path)
+        else:
+            DeleteLocalRepo(local_path)

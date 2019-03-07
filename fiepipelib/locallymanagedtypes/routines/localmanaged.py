@@ -12,6 +12,7 @@ T = typing.TypeVar("T")
 
 
 class AbstractLocalManagedRoutines(typing.Generic[T]):
+
     _feedbackUI: AbstractFeedbackUI = None
 
     def get_feedback_ui(self) -> AbstractFeedbackUI:
@@ -19,9 +20,6 @@ class AbstractLocalManagedRoutines(typing.Generic[T]):
 
     def __init__(self, feedback_ui: AbstractFeedbackUI):
         self._feedbackUI = feedback_ui
-
-    # we can't neccesarily implement the following becasue we don't have context.
-    # e.g. the "project" may determine what "all" means.
 
     @abc.abstractmethod
     def GetManager(self) -> AbstractUserLocalTypeManager[T]:
@@ -41,10 +39,6 @@ class AbstractLocalManagedRoutines(typing.Generic[T]):
 
     @abc.abstractmethod
     async def DeleteRoutine(self, name: str):
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    async def CreateUpdateRoutine(self, name: str):
         raise NotImplementedError()
 
     async def ImportRoutine(self, path):
@@ -132,3 +126,13 @@ class AbstractLocalManagedRoutines(typing.Generic[T]):
         for item in allItems:
             itemPath = os.path.join(str(path), self.ItemToName(item) + ".json")
             await self.ExportRoutine(self.ItemToName(item), itemPath)
+
+
+class AbstractLocalManagedInteractiveRoutines(AbstractLocalManagedRoutines[T]):
+
+    # we can't neccesarily implement the following becasue we don't have context.
+    # e.g. the "project" may determine what "all" means.
+
+    @abc.abstractmethod
+    async def CreateUpdateRoutine(self, name: str):
+        raise NotImplementedError()

@@ -4,7 +4,7 @@ import os.path
 import typing
 
 from fiepipelib.assetaspect.data.simpleapplication import AbstractSimpleApplicationInstall
-from fiepipelib.assetaspect.routines.simpleapplication import AbstractSimpleApplicationInstallRoutines, \
+from fiepipelib.assetaspect.routines.simpleapplication import AbstractSimpleApplicationInstallInteractiveRoutines, \
     AbstractSimpleFiletypeAspectConfigurationRoutines
 from fiepipelib.assetaspect.shell.config import ConfigCommand
 from fiepipelib.locallymanagedtypes.shells.AbstractLocalManagedTypeCommand import LocalManagedTypeCommand
@@ -16,7 +16,7 @@ T = typing.TypeVar("T", bound=AbstractSimpleApplicationInstall)
 class AbstractSimpleApplicationCommand(LocalManagedTypeCommand[T]):
 
     @abc.abstractmethod
-    def get_routines(self) -> AbstractSimpleApplicationInstallRoutines[T]:
+    def get_routines(self) -> AbstractSimpleApplicationInstallInteractiveRoutines[T]:
         raise NotImplementedError()
 
     def get_shell(self, item) -> AbstractShell:

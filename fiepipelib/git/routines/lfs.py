@@ -13,7 +13,7 @@ def InstallLFSRepo(repo: git.Repo):
         return repo.git.lfs("install", "--local")
 
 def LFSIsInstalledRepo(repo: git.Repo):
-    configs = repo.git.config("--list --local")
+    configs = repo.git.config("--list", "--local")
     assert isinstance(configs,str)
     config_lines = configs.splitlines()
     has_clean = False
@@ -31,7 +31,7 @@ def LFSIsInstalledRepo(repo: git.Repo):
     return has_clean and has_process and has_smudge
 
 def LFSIsInstalledGlobal():
-    configs = git.Git().config("--list --global")
+    configs = git.Git().config("--list", "--global")
     assert isinstance(configs,str)
     config_lines = configs.splitlines()
     has_clean = False

@@ -107,9 +107,10 @@ class localvolume(object):
     def HasAdjective(self, adjective):
         return adjective in self._adjectives
 
+HOME_VOLUME_NAME = "home"
 
 def GetHomeVolume(localUser: LocalUserRoutines):
-    return FromParameters("home", localUser.get_home_dir(), [CommonAdjectives.containerrole.WORKING_VOLUME])
+    return FromParameters(HOME_VOLUME_NAME, localUser.get_home_dir(), [CommonAdjectives.containerrole.WORKING_VOLUME])
 
 
 def GetAllRegisteredLocalVolumes(localUser: LocalUserRoutines) -> typing.List[localvolume]:

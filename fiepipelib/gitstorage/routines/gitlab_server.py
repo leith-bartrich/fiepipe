@@ -176,7 +176,7 @@ class GitLabGitAssetRoutines(GitLabGitStorageRoutines, ABC):
         """
 
         if self._working_asset.IsCheckedOut():
-            await self.pull(feedback_ui=feedback_ui)
+            await self.pull_routine(feedback_ui=feedback_ui)
         else:
             if init:
                 await self.init(feedback_ui=feedback_ui)
@@ -219,7 +219,7 @@ class GitLabGitAssetRoutines(GitLabGitStorageRoutines, ABC):
             for sub_asset_routines in self.get_sub_asset_routines():
                 await sub_asset_routines.push_branch(feedback_ui=feedback_ui)
             # then ourselves.
-            await self.push(feedback_ui=feedback_ui)
+            await self.push_routine(feedback_ui=feedback_ui)
 
     @property
     def working_asset(self):

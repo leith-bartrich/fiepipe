@@ -35,7 +35,7 @@ class Shell(AbstractShell):
         Usage: push_root
         """
         routines = self.get_routines()
-        self.do_coroutine(routines.push(self.get_feedback_ui()))
+        self.do_coroutine(routines.push_routine(self.get_feedback_ui()))
 
     def do_pull_root(self, args):
         """
@@ -44,7 +44,7 @@ class Shell(AbstractShell):
         Usage: pull_root
         """
         routines = self.get_routines()
-        self.do_coroutine(routines.pull(self.get_feedback_ui()))
+        self.do_coroutine(routines.pull_routine(self.get_feedback_ui()))
 
     def do_clone_root(self, args):
         """Clones from the GitLab server to the local root.
@@ -97,7 +97,7 @@ class Shell(AbstractShell):
         Usage: pull_whole_consistent
         """
         routines = self.get_routines()
-        routines.pull(self.get_feedback_ui())
+        routines.pull_routine(self.get_feedback_ui())
         for asset_routines in routines.get_all_asset_routines(recursive=False):
             assert isinstance(asset_routines, GitLabGitAssetRoutines)
             self.do_coroutine(asset_routines.update_branch(latest=False, init=True, feedback_ui=self.get_feedback_ui()))
@@ -112,7 +112,7 @@ class Shell(AbstractShell):
         Usage: pull_whole_latest
         """
         routines = self.get_routines()
-        routines.pull(self.get_feedback_ui())
+        routines.pull_routine(self.get_feedback_ui())
         for asset_routines in routines.get_all_asset_routines(recursive=False):
             assert isinstance(asset_routines, GitLabGitAssetRoutines)
             self.do_coroutine(asset_routines.update_branch(latest=True, init=True, feedback_ui=self.get_feedback_ui()))
@@ -128,7 +128,7 @@ class Shell(AbstractShell):
         Usage: pull_existing_latest
         """
         routines = self.get_routines()
-        self.do_coroutine(routines.pull(self.get_feedback_ui()))
+        self.do_coroutine(routines.pull_routine(self.get_feedback_ui()))
         for asset_routines in routines.get_all_asset_routines(recursive=False):
             assert isinstance(asset_routines, GitLabGitAssetRoutines)
             self.do_coroutine(asset_routines.update_branch(latest=True, init=False, feedback_ui=self.get_feedback_ui()))
@@ -143,7 +143,7 @@ class Shell(AbstractShell):
         for asset_routines in routines.get_all_asset_routines(recursive=False):
             assert isinstance(asset_routines, GitLabGitAssetRoutines)
             self.do_coroutine(asset_routines.push_branch(self.get_feedback_ui()))
-        self.do_coroutine(routines.push(self.get_feedback_ui()))
+        self.do_coroutine(routines.push_routine(self.get_feedback_ui()))
 
     def asset_complete(self, text, line, begidx, endidx):
         routines = self.get_routines()

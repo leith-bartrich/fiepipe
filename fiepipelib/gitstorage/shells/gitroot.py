@@ -3,6 +3,7 @@ import os.path
 import typing
 import sys
 import cmd2
+import shlex
 
 import fiepipelib.shells.AbstractShell
 from fiepipelib.container.shells.container_id_var_command import ContainerIDVariableCommand
@@ -12,7 +13,7 @@ from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
 from fiepipelib.gitstorage.data.localstoragemapper import localstoragemapper
 from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
 from fiepipelib.gitstorage.routines.gitlab_server import GitLabFQDNGitRootRoutines
-from fiepipelib.gitstorage.routines.gitroot import GitRootRoutines
+from fiepipelib.gitstorage.routines.gitroot import GitRootInteractiveRoutines
 from fiepipelib.gitstorage.shells.gitasset import Shell as GitAssetShell
 from fiepipelib.gitstorage.shells.gitrepo import GitRepoShell
 from fiepipelib.gitstorage.shells.gitroot_gitlab_server import Shell as GitLabGitRootShell
@@ -35,7 +36,7 @@ class Shell(GitRepoShell):
         routines = self.get_routines()
         routines.load()
         container = routines.container
-        fqdn = container.GetFQDN()
+        fqdn = container.get_fqdn()
         container_name = container.GetShortName()
         root = routines.root
         root_name = root.GetName()
@@ -62,10 +63,10 @@ class Shell(GitRepoShell):
     def get_fork_args(self) -> typing.List[str]:
         return super().get_fork_args()
 
-    def get_routines(self) -> GitRootRoutines:
-        return GitRootRoutines(self._container_id_var.get_value(), self._root_id_var.get_value(),
-                               feedback_ui=self.get_feedback_ui(),
-                               true_false_question_ui=self.get_true_false_question_modal_ui())
+    def get_routines(self) -> GitRootInteractiveRoutines:
+        return GitRootInteractiveRoutines(self._container_id_var.get_value(), self._root_id_var.get_value(),
+                                          feedback_ui=self.get_feedback_ui(),
+                                          true_false_question_ui=self.get_true_false_question_modal_ui())
 
     def mounted_backing_store_completion(self, text, line, begidx, endidx):
         ret = []
@@ -169,7 +170,7 @@ class Shell(GitRepoShell):
         all_assets = self.do_coroutine(routines.get_all_assets(True))
         for asset in all_assets:
             asset_id = asset.GetAsset().GetID()
-            asset_routines = routines.get_asset_routines(asset_id)
+            asset_routines = GitAssetRoutines(self._container_id_var.get_value(),self._root_id_var.get_value(),asset_id,self.get_feedback_ui())
             asset_routines.load()
             if not asset_routines.can_commit():
                 self.perror("Asset not in commit-able state: " + asset_routines._working_asset.GetSubmodule().path)
@@ -177,7 +178,26 @@ class Shell(GitRepoShell):
 
         log_message_input_ui = LogMessageInputUI(self)
         log_message = self.do_coroutine(log_message_input_ui.execute("Log message"))
+
         self.do_coroutine(routines.commit_all_recursive(log_message))
+
+        repo = routines.get_repo()
+        can_commit, reason = routines.can_commit()
+        if not can_commit:
+            self.perror("root dirty:" + reason)
+            return
+        all_assets = self.do_coroutine(routines.get_all_assets(recursive=False))
+
+        for asset in all_assets:
+            asset_routines = GitAssetRoutines(self._container_id_var.get_value(), self._root_id_var.get_value(), asset.GetAsset().GetID(),
+                                                         self._feedbackUI)
+            asset_routines.load()
+            self.do_coroutine(asset_routines.commit_recursive(log_message))
+
+        routines.add_submodule_versions()
+        if repo.is_dirty():
+            self.poutput(repo.git.commit("-m", shlex.quote(log_message)))
+
 
 
 
@@ -222,7 +242,7 @@ class GitLabServerCommand(fiepipelib.shells.AbstractShell.AbstractShell):
 
         server_routines = GitLabServerRoutines(args[0])
         root_routines = GitLabFQDNGitRootRoutines(server_routines, routines.root, routines.root_config,
-                                                  routines.container.GetFQDN())
+                                                  routines.container.get_fqdn())
 
         shell = GitLabGitRootShell(root_routines)
         shell.cmdloop()
@@ -383,8 +403,8 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         for arg in args:
             asset = routines.get_asset(arg)
             asset_routines = GitAssetRoutines(routines.container.GetID(), routines.root.GetID(),
-                                              asset.GetAsset().GetID(),
-                                              self.get_feedback_ui())
+                                                         asset.GetAsset().GetID(),
+                                                         self.get_feedback_ui())
             asset_routines.load()
             self.do_coroutine(asset_routines.deinit_branch())
 
@@ -399,12 +419,12 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
             assert isinstance(working_asset, GitWorkingAsset)
             if working_asset.IsCheckedOut():
                 asset_id = working_asset.GetAsset().GetID()
-                assset_routines = routines.get_asset_routines(asset_id)
-                assset_routines.load()
-                path = assset_routines.relative_path
-                dirty_index = assset_routines.is_dirty_index()
-                dirty_worktree = assset_routines.is_dirty_worktree()
-                untracked = assset_routines.has_untracked()
+                asset_routines = GitAssetRoutines(self._rootShell._container_id_var.get_value(),self._rootShell._root_id_var.get_value(),asset_id,self.get_feedback_ui())
+                asset_routines.load()
+                path = asset_routines.relative_path
+                dirty_index = asset_routines.is_dirty_index()
+                dirty_worktree = asset_routines.is_dirty_worktree()
+                untracked = asset_routines.has_untracked()
 
                 if dirty_index:
                     dirty_index_text = self.colorize('Dirty Index','yellow')
@@ -424,9 +444,9 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
                 self.poutput(path + " - " + untracked_text + " : " + dirty_worktree_text + " : " + dirty_index_text)
             else:
                 asset_id = working_asset.GetAsset().GetID()
-                assset_routines = routines.get_asset_routines(asset_id)
-                assset_routines.load()
-                self.poutput(assset_routines.relative_path + " - " + self.colorize("Not Checked Out",'cyan')
+                asset_routines = GitAssetRoutines(self._rootShell._container_id_var.get_value(),self._rootShell._root_id_var.get_value(),asset_id,self.get_feedback_ui())
+                asset_routines.load()
+                self.poutput(asset_routines.relative_path + " - " + self.colorize("Not Checked Out",'cyan')
 )
 
     def do_submodule_status(self, args):
@@ -451,11 +471,11 @@ class AssetsCommand(fiepipelib.shells.AbstractShell.AbstractShell):
         for working_asset in all_working_assets:
             assert isinstance(working_asset, GitWorkingAsset)
             asset_id = working_asset.GetAsset().GetID()
-            assset_routines = routines.get_asset_routines(asset_id)
-            assset_routines.load()
+            asset_routines = GitAssetRoutines(self._rootShell._container_id_var.get_value(),self._rootShell._root_id_var.get_value(),asset_id,self.get_feedback_ui())
+            asset_routines.load()
 
-            path = assset_routines._working_asset.GetSubmodule().path
-            can_commit = assset_routines.can_commit()
+            path = asset_routines._working_asset.GetSubmodule().path
+            can_commit = asset_routines.can_commit()
 
             if not can_commit:
                 self.poutput(path)

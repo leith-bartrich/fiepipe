@@ -10,10 +10,10 @@ import fiepipelib.encryption.public.publickey
 from fiepipelib.legalentity.authority.data.entity_authority import LegalEntityAuthority, \
     CreateFromParameters
 from fiepipelib.legalentity.authority.data.entity_authority_manager import LegalEntityAuthorityManager
-from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedRoutines
+from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedInteractiveRoutines
 
 
-class LegalEntityAuthorityManagerRoutines(AbstractLocalManagedRoutines[LegalEntityAuthority]):
+class LegalEntityAuthorityManagerInteractiveRoutines(AbstractLocalManagedInteractiveRoutines[LegalEntityAuthority]):
 
     def GetManager(self) -> LegalEntityAuthorityManager:
         plat = fiepipelib.localplatform.routines.localplatform.get_local_platform_routines()

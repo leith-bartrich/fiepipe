@@ -31,3 +31,11 @@ def get_commits_ahead(repo: git.Repo, branch: str, remote: str) -> typing.List[g
     for commit in iter:
         ret.append(commit)
     return ret
+
+
+def exists(repo: git.Repo, remote: str) -> bool:
+    try:
+        repo.git.ls_remote(remote, " --exit-code", "--quiet")
+        return True
+    except git.GitCommandError as err:
+        return False
