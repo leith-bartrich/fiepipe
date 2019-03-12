@@ -1,9 +1,9 @@
 import typing
 
-from fiepipelib.assetaspect.data.config import AspectConfiguration
+from fiepipelib.assetaspect.data.config import AssetAspectConfiguration
 
 
-class WatchFolderConfig(AspectConfiguration):
+class WatchFolderConfig(AssetAspectConfiguration):
 
     def get_lfs_patterns(self) -> typing.List[str]:
         return []

@@ -1,32 +1,23 @@
 import abc
 import typing
+
 import git
 
-from fiepipelib.assetaspect.data.config import AspectConfiguration
+from fiepipelib.assetaspect.data.config import AssetAspectConfiguration
 from fiepipelib.assetaspect.routines.autoconf import AutoConfigurationResult
-from fieui.FeedbackUI import AbstractFeedbackUI
+from fiepipelib.enum import get_worse_enum
 from fiepipelib.git.routines.ignore import AddIgnore, CheckCreateIgnore
 from fiepipelib.git.routines.lfs import InstallLFSRepo, Track, LFSIsInstalledRepo
+from fiepipelib.gitaspect.routines.config import GitAspectConfigurationRoutines
 from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
 from fiepipelib.gitstorage.routines.gitasset import GitAssetInteractiveRoutines
-from fiepipelib.enum import get_worse_enum
+from fieui.FeedbackUI import AbstractFeedbackUI
 
-T = typing.TypeVar("T", bound=AspectConfiguration)
+TA = typing.TypeVar("TA", bound=AssetAspectConfiguration)
 
 
-class AspectConfigurationRoutines(typing.Generic[T]):
-
-    _config: T = None
-    _asset_routines:GitAssetInteractiveRoutines = None
-
-    def get_configuration(self) -> T:
-        return self._config
-
-    def get_asset_path(self) -> str:
-        return self.get_configuration().asset_path
-
-    def get_asset_repo(self) -> git.Repo:
-        return git.Repo(self.get_asset_path())
+class AssetAspectConfigurationRoutines(GitAspectConfigurationRoutines[TA], typing.Generic[TA]):
+    _asset_routines: GitAssetInteractiveRoutines = None
 
     def get_working_asset(self) -> GitWorkingAsset:
         return GitWorkingAsset(self.get_asset_repo())
@@ -34,41 +25,21 @@ class AspectConfigurationRoutines(typing.Generic[T]):
     def get_asset_routines(self) -> GitAssetInteractiveRoutines:
         return self._asset_routines
 
-    def __init__(self, config:T, asset_routines:GitAssetInteractiveRoutines):
-        self._config = config
+    def __init__(self, config: TA, asset_routines: GitAssetInteractiveRoutines):
         self._asset_routines = asset_routines
-
-    def load(self):
-        self.get_configuration().load()
+        super(AssetAspectConfigurationRoutines, self).__init__(config)
 
     def commit(self):
-        self.get_configuration().commit()
-        repo = git.Repo(self.get_configuration().asset_path)
-        repo.git.add(self.get_configuration().get_config_path())
+        super(AssetAspectConfigurationRoutines, self).commit()
         self.update_git_meta()
 
-    def is_configured(self) -> bool:
-        config = self.get_configuration()
-        return config.exists()
-
     @abc.abstractmethod
-    def default_configuration(self):
-        """Populate the given configuration with defaults."""
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    async def reconfigure_interactive_routine(self):
-        """Reconfigure the aspect in an interactive manner."""
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    async def auto_reconfigure_routine(self, feedback_ui:AbstractFeedbackUI) -> AutoConfigurationResult:
+    async def auto_reconfigure_routine(self, feedback_ui: AbstractFeedbackUI) -> AutoConfigurationResult:
         """Reconfigure the aspect automatically if possible.
         Return the result based on what happened."""
         raise NotImplementedError()
 
-
-    async def auto_configure_routine(self, feedback_ui:AbstractFeedbackUI) -> AutoConfigurationResult:
+    async def auto_configure_routine(self, feedback_ui: AbstractFeedbackUI) -> AutoConfigurationResult:
         """
         Called by the structure or project managment systems to configure, or reconfigure this
         aspect in a programmatic manner.  With no user intervention.  Feedback should be provided via
@@ -87,7 +58,7 @@ class AspectConfigurationRoutines(typing.Generic[T]):
 
         ret = AutoConfigurationResult.NO_CHANGES
 
-        #create/update/write
+        # create/update/write
         configuration = self.get_configuration()
         if not configuration.exists():
             self.default_configuration()
@@ -100,30 +71,15 @@ class AspectConfigurationRoutines(typing.Generic[T]):
         if ret != AutoConfigurationResult.NO_CHANGES:
             if ret != AutoConfigurationResult.INTERVENTION_REQUIRED:
                 configuration.commit()
-                repo = git.Repo(configuration.asset_path)
+                repo = git.Repo(configuration.get_worktree_path())
                 repo.git.add(configuration.get_config_path())
                 self.update_git_meta()
 
         return ret
 
-
     async def create_update_configuration_interactive_routine(self):
-
-        #create/update/write
-        configuration = self.get_configuration()
-        if not configuration.exists():
-            self.default_configuration()
-        else:
-            configuration.load()
-        await self.reconfigure_interactive_routine()
-        configuration.commit()
-
-        #add to git
-        repo = git.Repo(configuration.asset_path)
-        repo.git.add(configuration.get_config_path())
+        await super(AssetAspectConfigurationRoutines, self).create_update_configuration_interactive_routine()
         self.update_git_meta()
-
-
 
     def update_git_meta(self):
         """Makes changes to the git meta-data system based
@@ -132,16 +88,16 @@ class AspectConfigurationRoutines(typing.Generic[T]):
         note: currently slow because we can't/don't always check for
         existing entries as efficiently as we should"""
         configuration = self.get_configuration()
-        repo = git.Repo(configuration.asset_path)
+        repo = git.Repo(configuration.get_worktree_path())
 
-        #update ignore and lfs track
+        # update ignore and lfs track
         lfs_patterns = configuration.get_lfs_patterns()
         git_ignores = configuration.get_git_ignores()
 
         CheckCreateIgnore(repo)
         for ignore in git_ignores:
-            AddIgnore(repo,ignore)
+            AddIgnore(repo, ignore)
         CheckCreateIgnore(repo)
         if not LFSIsInstalledRepo(repo):
             InstallLFSRepo(repo)
-        Track(repo,lfs_patterns)
+        Track(repo, lfs_patterns)

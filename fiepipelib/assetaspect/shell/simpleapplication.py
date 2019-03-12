@@ -6,7 +6,7 @@ import typing
 from fiepipelib.assetaspect.data.simpleapplication import AbstractSimpleApplicationInstall
 from fiepipelib.assetaspect.routines.simpleapplication import AbstractSimpleApplicationInstallInteractiveRoutines, \
     AbstractSimpleFiletypeAspectConfigurationRoutines
-from fiepipelib.assetaspect.shell.config import ConfigCommand
+from fiepipelib.assetaspect.shell.config import AssetConfigCommand
 from fiepipelib.locallymanagedtypes.shells.AbstractLocalManagedTypeCommand import LocalManagedTypeCommand
 from fiepipelib.shells.AbstractShell import AbstractShell
 
@@ -33,7 +33,7 @@ class AbstractSimpleApplicationCommand(LocalManagedTypeCommand[T]):
         return self.prompt_separator.join(['fiepipe', app_name + '_installs'])
 
 
-class AbstractSimpleFiletypeConfigCommand(ConfigCommand[T]):
+class AbstractSimpleFiletypeConfigCommand(AssetConfigCommand[T]):
 
 
 

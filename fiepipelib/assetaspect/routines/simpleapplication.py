@@ -6,7 +6,7 @@ import typing
 from fiepipelib.applauncher.genericlauncher import listlauncher
 from fiepipelib.assetaspect.data.simpleapplication import AbstractSimpleApplicationInstall, \
     AbstractSimpleApplicationInstallsManager
-from fiepipelib.assetaspect.routines.config import AspectConfigurationRoutines
+from fiepipelib.assetaspect.routines.config import AssetAspectConfigurationRoutines
 from fiepipelib.git.routines.lfs import InstallLFSRepo, Track
 from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedInteractiveRoutines
 from fiepipelib.ui.abspath_input_ui import AbstractAbspathDefaultInputUI
@@ -60,7 +60,7 @@ class AbstractSimpleApplicationInstallInteractiveRoutines(AbstractLocalManagedIn
         man.Set([item])
 
 
-class AbstractSimpleFiletypeAspectConfigurationRoutines(AspectConfigurationRoutines[T]):
+class AbstractSimpleFiletypeAspectConfigurationRoutines(AssetAspectConfigurationRoutines[T]):
 
 
 

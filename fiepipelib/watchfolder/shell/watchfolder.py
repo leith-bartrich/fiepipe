@@ -2,7 +2,7 @@ import os
 import os.path
 import typing
 
-from fiepipelib.assetaspect.shell.config import ConfigCommand
+from fiepipelib.assetaspect.shell.config import AssetConfigCommand
 from fiepipelib.gitstorage.shells.gitasset import Shell as GitAssetShell
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
@@ -10,7 +10,7 @@ from fiepipelib.watchfolder.data.aspect_config import WatchFolderConfig
 from fiepipelib.watchfolder.routines.aspect_config import WatcherRoutines
 
 
-class WatchFolderShellApplication(ConfigCommand[WatchFolderConfig]):
+class WatchFolderShellApplication(AssetConfigCommand[WatchFolderConfig]):
 
     def __init__(self, asset_shell: GitAssetShell):
         self._watchers = {}
