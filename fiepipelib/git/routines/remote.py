@@ -38,4 +38,7 @@ def exists(repo: git.Repo, remote: str) -> bool:
         repo.git.ls_remote(remote, " --exit-code", "--quiet")
         return True
     except git.GitCommandError as err:
+        #debug print for the moment.  Trying to understand
+        print("GitCommanddError thrown upon testing for remote.  Error output follows:")
+        print(str(err.stderr))
         return False
