@@ -12,7 +12,7 @@ from fiepipelib.gitlabserver.routines.gitlabserver import GitLabServerRoutines
 from fiepipelib.gitstorage.data.git_asset import NewID as NewAssetID
 from fiepipelib.gitstorage.routines.gitasset import GitAssetInteractiveRoutines
 from fiepipelib.gitstorage.routines.gitlab_server import GitLabFQDNGitRootRoutines, GitLabFQDNGitAssetRoutines
-from fiepipelib.gitstorage.routines.gitroot import GitRootInteractiveRoutines
+from fiepipelib.gitstorage.routines.gitroot import GitRootRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
 from enum import Enum
 from fiepipelib.enum import get_worse_enum
@@ -270,7 +270,7 @@ class AbstractGitStorageBasePath(AbstractDirPath, abc.ABC):
 
 class AbstractRootBasePath(AbstractGitStorageBasePath):
     """A basepath based on a git storage root"""
-    _root_routines: GitRootInteractiveRoutines = None
+    _root_routines: GitRootRoutines = None
 
     def get_routines(self):
         """Gets GitRootRoutines"""
@@ -285,7 +285,7 @@ class AbstractRootBasePath(AbstractGitStorageBasePath):
     def get_root_id(self) -> str:
         return self.get_routines().root.GetID()
 
-    def __init__(self, gitlab_server_name: str, routines: GitRootInteractiveRoutines):
+    def __init__(self, gitlab_server_name: str, routines: GitRootRoutines):
         self._root_routines = routines
         super().__init__(gitlab_server_name)
 

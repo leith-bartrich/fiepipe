@@ -29,3 +29,7 @@ class AssetAspectConfiguration(GitAspectConfiguration, abc.ABC):
     @property
     def asset_path(self):
         return self._asset_path
+
+    def get_config_dir_path(self) -> str:
+        return os.path.join(self.get_worktree_path(), 'asset_configs')
+

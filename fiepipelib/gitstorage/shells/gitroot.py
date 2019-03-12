@@ -36,7 +36,7 @@ class Shell(GitRepoShell):
         routines = self.get_routines()
         routines.load()
         container = routines.container
-        fqdn = container.get_fqdn()
+        fqdn = container.GetFQDN()
         container_name = container.GetShortName()
         root = routines.root
         root_name = root.GetName()

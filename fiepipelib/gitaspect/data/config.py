@@ -19,8 +19,9 @@ class GitAspectConfiguration(abc.ABC):
     def get_config_path(self) -> str:
         return os.path.join(self.get_config_dir_path(), self.get_config_name() + ".json")
 
+    @abstractmethod
     def get_config_dir_path(self) -> str:
-        return os.path.join(self.get_worktree_path(), 'asset_configs')
+        raise NotImplementedError
 
     def exists(self) -> bool:
         path = pathlib.Path(self.get_config_path())
