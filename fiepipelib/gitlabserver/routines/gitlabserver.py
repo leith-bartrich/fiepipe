@@ -97,6 +97,12 @@ class GitLabGitStorageRoutines(abc.ABC):
     def get_local_repo_path(self) -> str:
         raise NotImplementedError()
 
+    def is_in_conflict(self) -> bool:
+        local_repo_path = self.get_local_repo_path()
+        repo = git.Repo(local_repo_path)
+        return is_in_conflict(repo)
+
+
     async def pull_sub_routine(self, feedback_ui: AbstractFeedbackUI, branch: str) -> bool:
 
         server = self.get_server_routines().get_server()

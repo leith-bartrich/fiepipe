@@ -7,6 +7,10 @@ import git
 def NewID():
     return str(uuid.uuid4())
 
+def is_valid_id(id:str) -> bool:
+    uuid.UUID(id)
+    return True
+
 class GitAsset(object):
     """An high level, almost abstract representation of a git backed directory that in turn, represents a logical asset.
     

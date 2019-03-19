@@ -98,6 +98,18 @@ class GitAssetRoutines(GitRepoRoutines):
             # then ourself
             await self.deinit()
 
+    def is_init(self) -> bool:
+        submod = self._working_asset.GetSubmodule()
+        if not submod.exists():
+            return False
+        try:
+            repo = submod.module()
+            return True
+        except git.InvalidGitRepositoryError:
+            return False
+
+
+
     async def commit_recursive(self, log_message: str):
         if not self._working_asset.IsCheckedOut():
             return
