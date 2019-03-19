@@ -3,22 +3,21 @@ import os
 import typing
 from enum import Enum
 
-import git
 from git import Repo, Submodule
 
-from fiepipelib.git.routines.remote import get_commits_ahead, get_commits_behind,
+from fiepipelib.automanager.data.localconfig import LegalEntityConfig
+from fiepipelib.container.local_config.data.automanager import ContainerAutomanagerConfigurationComponent
+from fiepipelib.enum import get_worse_enum
+from fiepipelib.git.routines.remote import get_commits_ahead, get_commits_behind
 from fiepipelib.git.routines.repo import RepoExists, is_in_conflict
 from fiepipelib.git.routines.submodules import CreateEmpty as CreateEmptySubmodule, Add as AddSubmodule, \
     CreateFromSubDirectory as CreateSubmoduleFromSubDirectory
 from fiepipelib.gitlabserver.routines.gitlabserver import GitLabServerRoutines
-from fiepipelib.gitstorage.data.git_asset import NewID as NewAssetID,is_valid_id
+from fiepipelib.gitstorage.data.git_asset import NewID as NewAssetID, is_valid_id
 from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
 from fiepipelib.gitstorage.routines.gitlab_server import GitLabFQDNGitRootRoutines, GitLabFQDNGitAssetRoutines
 from fiepipelib.gitstorage.routines.gitroot import GitRootRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
-from fiepipelib.automanager.data.localconfig import LegalEntityConfig
-from fiepipelib.container.local_config.data.automanager import ContainerAutomanagerConfigurationComponent
-from fiepipelib.enum import get_worse_enum
 
 BT = typing.TypeVar("BT", bound='AbstractPath')
 
@@ -70,7 +69,7 @@ class AbstractPath(typing.Generic[BT], abc.ABC):
 
     @abc.abstractmethod
     async def automanager_create(self, feedback_ui: AbstractFeedbackUI, entity_config: LegalEntityConfig,
-                                  container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
+                                 container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
         """For auto-creation purposes.  Called by the auto-manager to create the static structure that should be
         created here.
 
@@ -106,7 +105,7 @@ class AbstractDirPath(AbstractPath[BT], typing.Generic[BT], abc.ABC):
 
     @abc.abstractmethod
     async def automanager_create_self(self, feedback_ui: AbstractFeedbackUI, entity_config: LegalEntityConfig,
-                                 container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
+                                      container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
         """Called by the automanager_create routine to creat just this structure.  Children are automatically called and results checked elsewhere."""
         raise NotImplementedError()
 
@@ -114,13 +113,13 @@ class AbstractDirPath(AbstractPath[BT], typing.Generic[BT], abc.ABC):
                                  container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
         result = AutoCreateResults.NO_CHANGES
 
-        self_result = await self.automanager_create_self(feedback_ui,entity_config,container_config)
+        self_result = await self.automanager_create_self(feedback_ui, entity_config, container_config)
         if self_result == AutoCreateResults.CANNOT_COMPLETE:
             await feedback_ui.error("Could not complete creation.  Canceling creation of children.")
             return self_result
         for subpath in self.get_subpaths():
-            subpath_result = await subpath.automanager_create(feedback_ui,entity_config,container_config)
-            get_worse_enum(result,subpath_result)
+            subpath_result = await subpath.automanager_create(feedback_ui, entity_config, container_config)
+            get_worse_enum(result, subpath_result)
         return result
 
 
@@ -141,16 +140,16 @@ class AbstractSubPath(AbstractPath[BT], typing.Generic[BT, DT], abc.ABC):
         self._parent_path = parent_path
 
 
-#might kill these types... or move them to automanager?
+# might kill these types... or move them to automanager?
 
 class AutoManageResults(Enum):
     # order is important.  We're using a > to deal with reporting recursive status.
     CLEAN = 1  # all up to date with no dirty assets
     DIRTY = 2  # some dirty assets seemingly due to work-in-progress.
     UNPUBLISHED_COMMITS = 3  # some assets have unpublished commits and therefore, it's not safe to pull their parents.
-    DIRTY_AND_UNPUBLISHED_COMMITS = 4 #some assets have unpublished commits but also, are dirty.
+    DIRTY_AND_UNPUBLISHED_COMMITS = 4  # some assets have unpublished commits but also, are dirty.
     PENDING = 5  # we won't know until we run parts of auto-update again.  This isn't an error though.  It's just a eventual convergence issue.
-    CANNOT_COMPLETE = 6 #an error has occurred which negates the ability to continue the automanaging and requires user-intervention.
+    CANNOT_COMPLETE = 6  # an error has occurred which negates the ability to continue the automanaging and requires user-intervention.
 
 
 class AutoCreateResults(Enum):
@@ -189,7 +188,6 @@ class AbstractGitStorageBasePath(AbstractDirPath[BT, DT], typing.Generic[BT, DT]
         """
         raise NotImplementedError()
 
-
     def exists(self, recursive=True) -> bool:
         path = self.get_path()
         if not os.path.exists(path):
@@ -206,7 +204,6 @@ class AbstractGitStorageBasePath(AbstractDirPath[BT, DT], typing.Generic[BT, DT]
             return base.get_root_base_path()
         else:
             raise AssertionError("A git asset should never have a base that's not a git asset or git root.")
-
 
     @abc.abstractmethod
     def get_fqdn(self) -> str:
@@ -279,7 +276,7 @@ class AbstractGitStorageBasePath(AbstractDirPath[BT, DT], typing.Generic[BT, DT]
                              untracked_files=consider_untracked_files, submodules=consider_submodule_changes)
 
 
-class AbstractRootBasePath(AbstractGitStorageBasePath[BT,DT], typing.Generic[BT,DT], abc.ABC):
+class AbstractRootBasePath(AbstractGitStorageBasePath[BT, DT], typing.Generic[BT, DT], abc.ABC):
     """A basepath based on a git storage root"""
     _root_routines: GitRootRoutines = None
 
@@ -310,15 +307,16 @@ class AbstractRootBasePath(AbstractGitStorageBasePath[BT,DT], typing.Generic[BT,
         return GitLabFQDNGitRootRoutines(gitlab_server_routines, root_routines.root, root_routines.root_config)
 
     async def automanager_create_self(self, feedback_ui: AbstractFeedbackUI, entity_config: LegalEntityConfig,
-                                 container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
+                                      container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
         if not RepoExists(self.get_routines().get_local_repo_path()):
             await feedback_ui.error("Root isn't checked-out.  You may need to init it, or pull it from gitlab?")
             return AutoCreateResults.CANNOT_COMPLETE
         return AutoCreateResults.NO_CHANGES
 
-    #TODO: rethink this?
+    # TODO: rethink this?
     @abc.abstractmethod
-    async def automanager_routine(self, feedback_ui: AbstractFeedbackUI, entity_config:LegalEntityConfig, container_config:ContainerAutomanagerConfigurationComponent):
+    async def automanager_routine(self, feedback_ui: AbstractFeedbackUI, entity_config: LegalEntityConfig,
+                                  container_config: ContainerAutomanagerConfigurationComponent):
         raise NotImplementedError()
         # entity_mode = entity_config.get_mode()
         # if entity_mode == LegalEntityMode.NONE:
@@ -343,7 +341,8 @@ class AbstractRootBasePath(AbstractGitStorageBasePath[BT,DT], typing.Generic[BT,
         #     update_results = await self.auto_update_routine(feedback_ui)
         #     await feedback_ui.output("update result: " + update_results.name)
 
-class AbstractAssetBasePath(AbstractGitStorageBasePath[BT,DT], typing.Generic[BT,DT]):
+
+class AbstractAssetBasePath(AbstractGitStorageBasePath[BT, DT], typing.Generic[BT, DT]):
     """A base-path for a git storage asset."""
     _asset_routines: GitAssetRoutines
 
@@ -379,13 +378,13 @@ class AbstractAssetBasePath(AbstractGitStorageBasePath[BT,DT], typing.Generic[BT
                                           asset_routines.container.get_fqdn())
 
     async def automanager_create_self(self, feedback_ui: AbstractFeedbackUI, entity_config: LegalEntityConfig,
-                                 container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
+                                      container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
         if not RepoExists(self.get_routines().abs_path):
             await feedback_ui.error("Repository doesn't exist: " + self.get_routines().abs_path)
             return AutoCreateResults.CANNOT_COMPLETE
-        #TODO: check that the module is checked-out first.
-        #it's possible the path results in a parent repo rather than this module?  Need to check that.
-        #also need to make sure it's not bare.
+        # TODO: check that the module is checked-out first.
+        # it's possible the path results in a parent repo rather than this module?  Need to check that.
+        # also need to make sure it's not bare.
         return AutoCreateResults.NO_CHANGES
 
 
@@ -419,7 +418,7 @@ class StaticSubDir(AbstractSubPath[BT], AbstractDirPath[BT], typing.Generic[BT])
         return os.path.join(self.get_parent_path().get_path(), self._dirname)
 
     async def automanager_create_self(self, feedback_ui: AbstractFeedbackUI, entity_config: LegalEntityConfig,
-                                 container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
+                                      container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
         if self.exists():
             return AutoCreateResults.NO_CHANGES
         else:
@@ -431,7 +430,6 @@ class StaticSubDir(AbstractSubPath[BT], AbstractDirPath[BT], typing.Generic[BT])
             # repo = git.Repo(base_path.get_path())
             # repo.index.add([self.get_path()])
             return AutoCreateResults.CHANGES_MADE
-
 
 
 class AssetsStaticSubDir(StaticSubDir[BT], typing.Generic[BT], abc.ABC):
@@ -464,7 +462,7 @@ class AssetsStaticSubDir(StaticSubDir[BT], typing.Generic[BT], abc.ABC):
         if not is_valid_id(submod.name):
             raise FileNotFoundError("Submod is not a valid Git Asset.  The name isn't a proper id: " + submod.name)
         return GitAssetRoutines(container_id=base_path.get_container_id(), root_id=base_path.get_root_id(),
-                                           asset_id=submod.name, feedback_ui=feedback_ui)
+                                asset_id=submod.name, feedback_ui=feedback_ui)
 
     def create_new_empty_asset(self, dirname: str):
         """Creates a new empty asset with a new id at the given directory name.
@@ -520,7 +518,7 @@ class AssetsStaticSubDir(StaticSubDir[BT], typing.Generic[BT], abc.ABC):
 TABP = typing.TypeVar("TABP", bound=AbstractAssetBasePath)
 
 
-class GenericAssetBasePathsSubDir(AssetsStaticSubDir[BT], typing.Generic[TABP,BT], abc.ABC):
+class GenericAssetBasePathsSubDir(AssetsStaticSubDir[BT], typing.Generic[TABP, BT], abc.ABC):
     """Convenience class for a subdir of assets of a particular type."""
 
     @abc.abstractmethod
@@ -538,4 +536,3 @@ class GenericAssetBasePathsSubDir(AssetsStaticSubDir[BT], typing.Generic[TABP,BT
             if submod.module_exists():
                 ret.append(self.get_asset_basepath_by_dirname(dirname, feedback_ui))
         return ret
-
