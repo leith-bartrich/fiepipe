@@ -3,11 +3,10 @@ import os
 import os.path
 import typing
 
-from fiepipelib.applauncher.genericlauncher import listlauncher
+from fiepipedesktoplib.applauncher.genericlauncher import listlauncher
 from fiepipelib.assetaspect.data.simpleapplication import AbstractSimpleApplicationInstall, \
     AbstractSimpleApplicationInstallsManager
 from fiepipelib.assetaspect.routines.config import AssetAspectConfigurationRoutines
-from fiepipelib.git.routines.lfs import InstallLFSRepo, Track
 from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedInteractiveRoutines
 from fiepipelib.ui.abspath_input_ui import AbstractAbspathDefaultInputUI
 from fieui.FeedbackUI import AbstractFeedbackUI
