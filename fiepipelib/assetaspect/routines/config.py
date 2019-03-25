@@ -10,22 +10,22 @@ from fiepipelib.git.routines.ignore import AddIgnore, CheckCreateIgnore
 from fiepipelib.git.routines.lfs import InstallLFSRepo, Track, LFSIsInstalledRepo
 from fiepipelib.gitaspect.routines.config import GitAspectConfigurationRoutines
 from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
-from fiepipelib.gitstorage.routines.gitasset import GitAssetInteractiveRoutines
+from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
 
 TA = typing.TypeVar("TA", bound=AssetAspectConfiguration)
 
 
 class AssetAspectConfigurationRoutines(GitAspectConfigurationRoutines[TA], typing.Generic[TA]):
-    _asset_routines: GitAssetInteractiveRoutines = None
+    _asset_routines: GitAssetRoutines = None
 
     def get_working_asset(self) -> GitWorkingAsset:
         return GitWorkingAsset(self.get_asset_repo())
 
-    def get_asset_routines(self) -> GitAssetInteractiveRoutines:
+    def get_asset_routines(self) -> GitAssetRoutines:
         return self._asset_routines
 
-    def __init__(self, config: TA, asset_routines: GitAssetInteractiveRoutines):
+    def __init__(self, config: TA, asset_routines: GitAssetRoutines):
         self._asset_routines = asset_routines
         super(AssetAspectConfigurationRoutines, self).__init__(config)
 

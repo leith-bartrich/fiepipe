@@ -19,7 +19,6 @@ from fiepipelib.gitstorage.routines.gitlab_server import GitLabFQDNGitRootRoutin
 from fiepipelib.gitstorage.routines.gitroot import GitRootRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
 
-BT = typing.TypeVar("BT", bound='AbstractPath')
 
 """Structure is about 'static' paths.  What is 'static' and what is 'dynamic' is a bit amorphous.
 
@@ -43,6 +42,7 @@ In this package, we try to define minimal abstractions, which reflect the ultima
 And also useful base-classes, which try to be a little more useful, in exchange for being a little more restrictive.
 """
 
+BT = typing.TypeVar("BT", bound='AbstractPath')
 
 class AbstractPath(typing.Generic[BT], abc.ABC):
     """A static path. Not a parent, not a child. Not dynamic. Not a subdirectory. Just an abtract static path. Might be leaf
@@ -158,7 +158,7 @@ class AutoCreateResults(Enum):
     CANNOT_COMPLETE = 3  # cannot (re)create this structure.
 
 
-class AbstractGitStorageBasePath(AbstractDirPath[BT, DT], typing.Generic[BT, DT], abc.ABC):
+class AbstractGitStorageBasePath(AbstractDirPath[BT], typing.Generic[BT], abc.ABC):
     """A base path, which is based on a git storage type.  Either a root or asset."""
 
     _gitlab_server_name: str = None
@@ -276,7 +276,7 @@ class AbstractGitStorageBasePath(AbstractDirPath[BT, DT], typing.Generic[BT, DT]
                              untracked_files=consider_untracked_files, submodules=consider_submodule_changes)
 
 
-class AbstractRootBasePath(AbstractGitStorageBasePath[BT, DT], typing.Generic[BT, DT], abc.ABC):
+class AbstractRootBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT], abc.ABC):
     """A basepath based on a git storage root"""
     _root_routines: GitRootRoutines = None
 
@@ -342,7 +342,7 @@ class AbstractRootBasePath(AbstractGitStorageBasePath[BT, DT], typing.Generic[BT
         #     await feedback_ui.output("update result: " + update_results.name)
 
 
-class AbstractAssetBasePath(AbstractGitStorageBasePath[BT, DT], typing.Generic[BT, DT]):
+class AbstractAssetBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT]):
     """A base-path for a git storage asset."""
     _asset_routines: GitAssetRoutines
 
@@ -518,7 +518,7 @@ class AssetsStaticSubDir(StaticSubDir[BT], typing.Generic[BT], abc.ABC):
 TABP = typing.TypeVar("TABP", bound=AbstractAssetBasePath)
 
 
-class GenericAssetBasePathsSubDir(AssetsStaticSubDir[BT], typing.Generic[TABP, BT], abc.ABC):
+class GenericAssetBasePathsSubDir(AssetsStaticSubDir[BT], typing.Generic[BT, TABP], abc.ABC):
     """Convenience class for a subdir of assets of a particular type."""
 
     @abc.abstractmethod

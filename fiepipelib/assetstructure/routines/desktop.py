@@ -3,17 +3,16 @@ import typing
 
 import git
 
-from fiepipelib.assetstructure.routines.structure import AbstractAssetBasePath, TABP, AutoManageResults, \
-    AbstractRootBasePath, AutoCreateResults
+from fiepipelib.assetstructure.routines.structure import AbstractAssetBasePath, BT, AutoManageResults, \
+    AbstractRootBasePath, AutoCreateResults, AbstractPath
 from fiepipelib.automanager.data.localconfig import LegalEntityConfig, LegalEntityMode
 from fiepipelib.container.local_config.data.automanager import ContainerAutomanagerConfigurationComponent
 from fiepipelib.enum import get_worse_enum
 from fieui.FeedbackUI import AbstractFeedbackUI
 
-
 # ROOT
 
-class AbstractDesktopProjectRootBasePath(AbstractRootBasePath[TABP], typing.Generic[TABP], abc.ABC):
+class AbstractDesktopProjectRootBasePath(AbstractRootBasePath[BT], typing.Generic[BT], abc.ABC):
     """A convenience base path base class for a Desktop style project root.
     Assumes distributed project system, contributed to and pulled by many
     different desktop users across multiple sites/networks/segments/planets/solar-systems/etc."""
@@ -113,7 +112,7 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath[TABP], typing.Gene
 
 # ASSET
 
-class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath[TABP], typing.Generic[TABP], abc.ABC):
+class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath[BT], typing.Generic[BT], abc.ABC):
     """A convenience base path base class for Desktop style asset in a project root.
     Assumes distributed project system, contributed to and pulled by many
     different desktop users across multiple sites/networks/segments/planets/solar-systems/etc."""
@@ -425,3 +424,4 @@ class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath[TABP], typing.Ge
         else:
             await feedback_ui.error("Unsupported entity auto-manager mode.")
             return AutoManageResults.CANNOT_COMPLETE
+
