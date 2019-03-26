@@ -1,5 +1,6 @@
 import abc
 import typing
+import os
 
 from fiepipelib.gitaspect.data.config import GitAspectConfiguration
 
