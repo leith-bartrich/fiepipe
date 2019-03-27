@@ -10,6 +10,7 @@ from fiepipelib.container.local_config.data.localcontainerconfiguration import L
 from fiepipelib.components.data.components import AbstractNamedItemListComponent
 from fiepipelib.gitstorage.data.git_working_asset import GitWorkingAsset
 from fiepipelib.gitstorage.data.localstoragemapper import localstoragemapper
+
 def LocalRootConfigFromJSONData(data):
     ret = LocalRootConfiguration()
     ret._id = data['id']
@@ -91,20 +92,22 @@ class LocalRootConfiguration(object):
         repo = self.GetRepo(mapper)
         assert isinstance(repo, git.Repo)
         ret = []
+
         for submodule in repo.submodules:
         #for submodule in repo.iter_submodules():
             asset = GitWorkingAsset(submodule)
-            ret.append(asset)
-            if recursive:
-                ret.extend(self._get_all_subassets(asset))
+            if asset.IsCheckedOut():
+                ret.append(asset)
+                if recursive:
+                    ret.extend(self._get_all_subassets(asset))
         return ret
 
     def _get_all_subassets(self, working_asset:GitWorkingAsset) -> typing.List[GitWorkingAsset]:
         ret = []
         for sub_asset in working_asset.GetSubWorkingAssets():
             if sub_asset.IsCheckedOut():
+                ret.append(sub_asset)
                 ret.extend(self._get_all_subassets(sub_asset))
-            ret.append(sub_asset)
         return ret
 
 

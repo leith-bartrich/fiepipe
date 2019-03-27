@@ -33,8 +33,8 @@ class GitWorkingAsset(object):
 
     def GetSubWorkingAssets(self):
         ret = []
-        submods = self.GetSubmodule().children()
-        for submod in submods:
+        repo = self.GetRepo()
+        for submod in repo.submodules:
             assert isinstance(submod, git.Submodule)
             ret.append(GitWorkingAsset(submod))
         return ret

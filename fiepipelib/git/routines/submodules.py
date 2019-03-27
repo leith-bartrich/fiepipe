@@ -1,13 +1,16 @@
-import git
-import git.util
 import os
 import os.path
+import pathlib
 import tempfile
+import typing
+
+import git
+import git.util
+
+import fiepipelib.git.routines.ignore
 import fiepipelib.git.routines.repo
 import fiepipelib.gitstorage.data.git_asset
-import fiepipelib.git.routines.ignore
-import shutil
-import pathlib
+
 
 def InitializeSystem(repo):
     assert isinstance(repo, git.Repo)
@@ -231,9 +234,10 @@ def Update(repo, submodule, recursive=False):
     """
     assert isinstance(repo, git.Repo)
     assert isinstance(submodule, git.Submodule)
-    submodule.update(recursive,True,True)
-    
-def CanCreateSubmodule(repo, subpath, must_be_empty = False):
+    submodule.update(recursive, True, True)
+
+
+def CanCreateSubmodule(repo, subpath, must_be_empty=False):
     """Returns a tupple of (repo,subpath) for the submodule repository for which
     the given subpath can be created.  This function walks recursively into
     submodules, shortening the subpath as neccesary.
@@ -268,14 +272,16 @@ def CanCreateSubmodule(repo, subpath, must_be_empty = False):
     absPath = os.path.join(repo.working_dir, subpath)
     if os.path.exists(absPath):
         if os.path.isfile(absPath):
-            #can't create a submod if its already a file.
-            return (None,None)
+            # can't create a submod if its already a file.
+            return (None, None)
         if must_be_empty:
             if os.path.isdir(absPath):
-                #we might be okay if it's empty.
+                # we might be okay if it's empty.
                 if not len(os.listdir(absPath)) == 0:
-                    #not empty
-                    return (None,None)
+                    # not empty
+                    return (None, None)
 
     # if we get here, we've passed all tests, we can create here.
     return ret
+
+

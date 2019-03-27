@@ -109,7 +109,7 @@ class GitRootRoutines(GitRepoRoutines):
         if RepoExists(self.get_local_repo_path()):
             existsText = "exists"
             rep = self.get_local_repo()
-            if rep.is_dirty(untracked_files=True):
+            if rep.is_dirty(True,True,True,False):
                 statusText = "dirty"
             else:
                 statusText = "clean"
@@ -123,7 +123,7 @@ class GitRootRoutines(GitRepoRoutines):
             existsText = "exists"
             rep = working_asset.GetSubmodule().module()
             assert isinstance(rep, git.Repo)
-            if rep.is_dirty(untracked_files=True):
+            if rep.is_dirty(True,True,True,False):
                 statusText = "dirty"
             else:
                 statusText = "clean"
@@ -248,33 +248,44 @@ class GitRootRoutines(GitRepoRoutines):
             raise
         return assets
 
-    def get_asset(self, pathorid: str) -> GitWorkingAsset:
+    def get_working_asset_by_id(self, id:str) -> GitWorkingAsset:
         """Returns a workingasset for a path or id from this root, if possible.
         """
-        assets = self._root_config.GetWorkingAssets(self._mapper, True)
+        working_assets = self._root_config.GetWorkingAssets(self._mapper, True)
+        for working_asset in working_assets:
+            id = working_asset.GetAsset().GetID()
+            if id.lower() == id.lower():
+                return working_asset
+
+
+    def get_working_asset(self, pathorid: str) -> GitWorkingAsset:
+        """Returns a workingasset for a path or id from this root, if possible.
+        """
+        working_assets = self._root_config.GetWorkingAssets(self._mapper, True)
         work_tree_dir = self.get_local_repo().working_tree_dir
-        for asset in assets:
+        for working_asset in working_assets:
 
-            id = asset.GetAsset().GetID()
+            id = working_asset.GetAsset().GetID()
             if id.lower() == pathorid.lower():
-                return asset
+                return working_asset
 
-            relpath = os.path.relpath(asset.GetSubmodule().abspath, work_tree_dir)
+
+            relpath = os.path.relpath(working_asset.GetSubmodule().abspath, work_tree_dir)
             norm_relpath = os.path.normpath(relpath)
             norm_pathorid = os.path.normpath(pathorid)
             if norm_relpath == norm_pathorid:
-                return asset
+                return working_asset
 
-            # path = asset.GetSubmodule().path
+            # path = working_asset.GetSubmodule().path
             # norm_path = os.path.normpath(path)
             # if norm_path == norm_pathorid:
-            #    return asset
+            #    return working_asset
 
         raise KeyError("Asset not found: " + pathorid)
 
 
     def delete_asset(self, pathorid: str):
-        workingAsset = self.get_asset(pathorid)
+        workingAsset = self.get_working_asset(pathorid)
         rootRepo = self.get_local_repo()
         RemoveSubmodule(rootRepo, workingAsset.GetAsset().GetID())
 

@@ -33,11 +33,9 @@ class GitAssetRoutines(GitRepoRoutines):
     def load(self):
         self._root_routines = GitRootRoutines(self._container_id,self._root_id,self._feedback_ui)
         self._root_routines.load()
-
-        self._asset = self._root_routines.get_asset(self._asset_id)
-        for working_asset in self._root_routines.root_config.GetWorkingAssets(self._root_routines.mapper, True):
-            if working_asset.GetAsset().GetID() == self._asset_id:
-                self._working_asset = working_asset
+        self._asset = GitAsset(self._asset_id)
+        submod = self._root_routines.get_repo().submodule(self._asset_id)
+        self._working_asset = GitWorkingAsset(submod)
 
     @property
     def working_asset(self):
