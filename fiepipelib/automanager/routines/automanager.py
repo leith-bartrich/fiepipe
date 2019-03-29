@@ -169,7 +169,7 @@ class AutoManagerRoutines(object):
         await feedback_ui.output("AutoManager Main Routine Complete.")
         return
 
-    def _get_legal_entitiy_config(self, fqdn: str) -> LegalEntityConfig:
+    def get_legal_entitiy_config(self, fqdn: str) -> LegalEntityConfig:
         ret = []
         user = get_local_user_routines()
         man = LegalEntityConfigManager(user)

@@ -5,7 +5,7 @@ import fiepipelib.localplatform.routines.localplatform
 import fiepipelib.localuser.routines.localuser
 from fiepipelib.legalentity.registry.data.registered_entity import localregistry, RegisteredEntity
 from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedInteractiveRoutines
-
+from fieui.FeedbackUI import AbstractFeedbackUI
 
 class RegisteredEntityManagerInteractiveRoutines(AbstractLocalManagedInteractiveRoutines[RegisteredEntity]):
 
@@ -54,3 +54,5 @@ class RegisteredEntityManagerInteractiveRoutines(AbstractLocalManagedInteractive
             assert isinstance(entity, RegisteredEntity)
             await self.get_feedback_ui().feedback("Registering: " + entity.get_fqdn())
             man.Set([entity])
+
+

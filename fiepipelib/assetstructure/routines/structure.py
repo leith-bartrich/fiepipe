@@ -46,7 +46,11 @@ BT = typing.TypeVar("BT", bound='AbstractPath')
 
 class AbstractPath(typing.Generic[BT], abc.ABC):
     """A static path. Not a parent, not a child. Not dynamic. Not a subdirectory. Just an abtract static path. Might be leaf
-    or a base or whatever. """
+    or a base or whatever.
+
+    Generic types BT
+
+    BT: the base path's type - AbstractPath"""
 
     @abc.abstractmethod
     def get_path(self) -> str:
@@ -89,12 +93,26 @@ class AbstractPath(typing.Generic[BT], abc.ABC):
 
 class AbstractDirPath(AbstractPath[BT], typing.Generic[BT], abc.ABC):
     """Extends AbstractPath with the minimum requirements of a path that is a directory.
-    A mix-in."""
+    A mix-in.
+
+    Generics BT
+
+    BT: the base path's type - AbstractPath"""
 
     @abc.abstractmethod
     def get_subpaths(self) -> typing.List[AbstractPath]:
         """Gets static directory entires."""
         raise NotImplementedError
+
+    def get_subpaths_recursive(self) -> typing.List[AbstractPath]:
+        ret = []
+        for subpath in self.get_subpaths():
+            ret.append(subpath)
+            if isinstance(subpath,AbstractDirPath):
+                ret.extend(subpath.get_subpaths_recursive())
+        return ret
+
+
 
     def all_children_exist(self) -> bool:
         for subpath in self.get_subpaths():
@@ -128,7 +146,12 @@ DT = typing.TypeVar("DT", bound=AbstractDirPath)
 
 class AbstractSubPath(AbstractPath[BT], typing.Generic[BT, DT], abc.ABC):
     """Extends an AbstractPath with parts neccesary to act as a sub-path of a parent path.
-    A mix-in."""
+    A mix-in.
+
+    Generics BT, DT
+
+    BT: the base path's type - AbstractPath
+    DT: the parent path's type - AbstractDirPath"""
 
     _parent_path: DT = None
 
@@ -159,7 +182,11 @@ class AutoCreateResults(Enum):
 
 
 class AbstractGitStorageBasePath(AbstractDirPath[BT], typing.Generic[BT], abc.ABC):
-    """A base path, which is based on a git storage type.  Either a root or asset."""
+    """A base path, which is based on a git storage type.  Either a root or asset.
+
+    Generics BT
+
+    BT: Base path's type - AbstractPath"""
 
     _gitlab_server_name: str = None
 
@@ -277,7 +304,12 @@ class AbstractGitStorageBasePath(AbstractDirPath[BT], typing.Generic[BT], abc.AB
 
 
 class AbstractRootBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT], abc.ABC):
-    """A basepath based on a git storage root"""
+    """A basepath based on a git storage root
+
+    Generics BT
+
+    BT: base path's type: AbstractPath
+    """
     _root_routines: GitRootRoutines = None
 
     def get_routines(self):
@@ -343,7 +375,11 @@ class AbstractRootBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT], a
 
 
 class AbstractAssetBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT]):
-    """A base-path for a git storage asset."""
+    """A base-path for a git storage asset.
+
+    Generics BT
+
+    BT: base path's type - Abstract Path"""
     _asset_routines: GitAssetRoutines
 
     def get_routines(self):
@@ -388,11 +424,16 @@ class AbstractAssetBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT]):
         return AutoCreateResults.NO_CHANGES
 
 
-class StaticSubDir(AbstractSubPath[BT], AbstractDirPath[BT], typing.Generic[BT]):
+class StaticSubDir(AbstractSubPath[BT,DT], AbstractDirPath[BT], typing.Generic[BT, DT]):
     """A static subdirectory in the static structure.  Implements both SubPath and DirPath.
     Note, it's not a kind of submodule.  It is explicitly a normal subdirectory.
     Also, it's not just any subdirectory.  It's one that has pre-defined members rather than
-    procedurally created members.  Though if you define no subpaths, it's just an un-managed directory."""
+    procedurally created members.  Though if you define no subpaths, it's just an un-managed directory.
+
+    Generic types: BT,DT
+
+    BT: the base path's type - AbstractPath
+    DT: the parent's type - AbstractDirPath"""
 
     _dirname: str = None
     _subpaths: typing.List[AbstractSubPath] = None
@@ -417,6 +458,14 @@ class StaticSubDir(AbstractSubPath[BT], AbstractDirPath[BT], typing.Generic[BT])
     def get_path(self) -> str:
         return os.path.join(self.get_parent_path().get_path(), self._dirname)
 
+    def exists(self) -> bool:
+        path = self.get_path()
+        if not os.path.exists(path):
+            return False
+        if not os.path.isdir(path):
+            raise NotADirectoryError()
+        return True
+
     async def automanager_create_self(self, feedback_ui: AbstractFeedbackUI, entity_config: LegalEntityConfig,
                                       container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
         if self.exists():
@@ -432,8 +481,13 @@ class StaticSubDir(AbstractSubPath[BT], AbstractDirPath[BT], typing.Generic[BT])
             return AutoCreateResults.CHANGES_MADE
 
 
-class AssetsStaticSubDir(StaticSubDir[BT], typing.Generic[BT], abc.ABC):
-    """A static subdirectory that contains N number of git storage assets.  A mix-in."""
+class AssetsStaticSubDir(StaticSubDir[BT,DT], typing.Generic[BT,DT], abc.ABC):
+    """A static subdirectory that contains N number of git storage assets.  A mix-in.
+
+    Generics BT,DT
+
+    BT: base path's type: AbstractPath
+    DT: parent dir's type: AbstractDirPath"""
 
     def get_submodules(self) -> typing.Dict[str, Submodule]:
         """Gets the contained assets as dictionary of git.Submodule objects where the directory name is the key."""
@@ -448,8 +502,7 @@ class AssetsStaticSubDir(StaticSubDir[BT], typing.Generic[BT], abc.ABC):
                 submods[submod_dirname] = submod
         return submods
 
-    def get_asset_routines_by_dirname(self, feedback_ui: AbstractFeedbackUI,
-                                      dirname: str) -> GitAssetRoutines:
+    def get_asset_routines_by_dirname(self, dirname: str) -> GitAssetRoutines:
         """Gets an instance of GitAssetRoutines for a specific named sub-asset.
         Typically, you'll use get_submodules to get a named list, and then use the name to get the Routines.
         It's always possible someone deleted the asset in the interim, resulting in an exception throw."""
@@ -518,15 +571,21 @@ class AssetsStaticSubDir(StaticSubDir[BT], typing.Generic[BT], abc.ABC):
 TABP = typing.TypeVar("TABP", bound=AbstractAssetBasePath)
 
 
-class GenericAssetBasePathsSubDir(AssetsStaticSubDir[BT], typing.Generic[BT, TABP], abc.ABC):
-    """Convenience class for a subdir of assets of a particular type."""
+class GenericAssetBasePathsSubDir(AssetsStaticSubDir[BT,DT], typing.Generic[BT, DT, TABP], abc.ABC):
+    """Convenience class for a subdir of assets of a particular type.
+
+    Generics BT, DT, TABP
+
+    BT: bast path's type: AbstractPath
+    DT: parent dir's type: AbstractDirPath
+    TABP: asset base path type: AbstractAssetBasePath"""
 
     @abc.abstractmethod
-    def get_asset_basepath_by_dirname(self, dirname: str, feedback_ui: AbstractFeedbackUI) -> TABP:
+    def get_asset_basepath_by_dirname(self, dirname: str) -> TABP:
         """Create and return an appropriate AssetBasePath for the given dirname"""
         raise NotImplementedError()
 
-    def get_asset_basepaths(self, feedback_ui: AbstractFeedbackUI) -> typing.List[TABP]:
+    def get_asset_basepaths(self) -> typing.List[TABP]:
         """Returns a list of AssetBasePaths for submodules that have been checked out."""
         ret = []
         submods = self.get_submodules()
