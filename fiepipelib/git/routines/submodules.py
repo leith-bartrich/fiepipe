@@ -36,6 +36,8 @@ def Add(repo, name, path, url, branch=None, no_checkout=False):
     repo.git.submodule(args)
     return repo.submodule(name)
 
+def add_gitmodules_file(repo:git.Repo):
+    repo.index.add(['.gitmodules'])
 
 def Remove(repo, name):
     """Fully removes a submodule from the worktree and from the repo configuration.

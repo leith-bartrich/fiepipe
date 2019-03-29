@@ -11,7 +11,7 @@ from fiepipelib.enum import get_worse_enum
 from fiepipelib.git.routines.remote import get_commits_ahead, get_commits_behind
 from fiepipelib.git.routines.repo import RepoExists, is_in_conflict
 from fiepipelib.git.routines.submodules import CreateEmpty as CreateEmptySubmodule, Add as AddSubmodule, \
-    CreateFromSubDirectory as CreateSubmoduleFromSubDirectory
+    CreateFromSubDirectory as CreateSubmoduleFromSubDirectory, add_gitmodules_file
 from fiepipelib.gitlabserver.routines.gitlabserver import GitLabServerRoutines
 from fiepipelib.gitstorage.data.git_asset import NewID as NewAssetID, is_valid_id
 from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
@@ -80,13 +80,20 @@ class AbstractPath(typing.Generic[BT], abc.ABC):
         How this works is up to the implementation for the most part.  Guidelines follow however.
 
         The implementation should heed the configuration.  This is not an order to create structure.  It is an order to
-        run the routine for creating structure.  If that routine says nothing shouldbe created becasue it's not configured
+        run the routine for creating structure.  If that routine says nothing should be created because it's not configured
         as such, then that's the correct behavior.  But the return needs to reflect that.
 
         The implementation should try to return NO_CHANGES whenever it can reliably do so.
 
         The implementation should try to return CANNOT_COMPLETE proactively to keep further nested automanager routines from running
         when there is something wrong with this structure.
+
+        Generally speaking, git-add should be run by the implementation of this method when things are created.  But not haphazzardly.
+        Keep in mind, that running git-add on a directory adds all content.  Which is dangerous.  But also, git-add of a
+        directory is never necceesary.  Git tracks files, not directories.  So the rule is: git-add files here.  Don't git-add directories here.
+
+        Also, there is no need to git-add everything here.  Just the static structure for creation should be added.
+        Automanger should handle content managment elsewhere.
         """
         raise NotImplementedError()
 
@@ -124,7 +131,7 @@ class AbstractDirPath(AbstractPath[BT], typing.Generic[BT], abc.ABC):
     @abc.abstractmethod
     async def automanager_create_self(self, feedback_ui: AbstractFeedbackUI, entity_config: LegalEntityConfig,
                                       container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
-        """Called by the automanager_create routine to creat just this structure.  Children are automatically called and results checked elsewhere."""
+        """Called by the automanager_create routine to create just this structure.  Children are automatically called and results checked elsewhere."""
         raise NotImplementedError()
 
     async def automanager_create(self, feedback_ui: AbstractFeedbackUI, entity_config: LegalEntityConfig,
@@ -166,7 +173,6 @@ class AbstractSubPath(AbstractPath[BT], typing.Generic[BT, DT], abc.ABC):
 # might kill these types... or move them to automanager?
 
 class AutoManageResults(Enum):
-    # order is important.  We're using a > to deal with reporting recursive status.
     CLEAN = 1  # all up to date with no dirty assets
     DIRTY = 2  # some dirty assets seemingly due to work-in-progress.
     UNPUBLISHED_COMMITS = 3  # some assets have unpublished commits and therefore, it's not safe to pull their parents.
@@ -345,33 +351,10 @@ class AbstractRootBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT], a
             return AutoCreateResults.CANNOT_COMPLETE
         return AutoCreateResults.NO_CHANGES
 
-    # TODO: rethink this?
     @abc.abstractmethod
     async def automanager_routine(self, feedback_ui: AbstractFeedbackUI, entity_config: LegalEntityConfig,
-                                  container_config: ContainerAutomanagerConfigurationComponent):
+                                  container_config: ContainerAutomanagerConfigurationComponent) -> AutoManageResults:
         raise NotImplementedError()
-        # entity_mode = entity_config.get_mode()
-        # if entity_mode == LegalEntityMode.NONE:
-        #     return
-        # elif entity_mode == LegalEntityMode.USER_WORKSTATION:
-        #     create_results = await self.auto_create_routine(feedback_ui)
-        #     await feedback_ui.output("Running auto (re)creation.")
-        #     if create_results == AutoCreateResults.CANNOT_COMPLETE:
-        #         await feedback_ui.warn("The (re)creation of the structure cannot complete.")
-        #         await feedback_ui.output("Canceling (re)configure and update until it's resolved.")
-        #         return
-        #     await feedback_ui.output("(re)creation result: " + create_results.name)
-        #     await feedback_ui.output("Running auto (re)configuration.")
-        #     configure_results = await self.auto_configure_routine(feedback_ui)
-        #     if configure_results == AutoConfigurationResult.INTERVENTION_REQUIRED:
-        #         await feedback_ui.warn(
-        #             "The (re)configuration of the structure cannot complete and requires user intervention.")
-        #         await feedback_ui.output("Canceling update until it's resolved.")
-        #         return
-        #     await feedback_ui.output("(re)configuration result: " + configure_results.name)
-        #     await feedback_ui.output("Running auto update.")
-        #     update_results = await self.auto_update_routine(feedback_ui)
-        #     await feedback_ui.output("update result: " + update_results.name)
 
 
 class AbstractAssetBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT]):
@@ -473,11 +456,7 @@ class StaticSubDir(AbstractSubPath[BT,DT], AbstractDirPath[BT], typing.Generic[B
         else:
             path = self.get_path()
             os.makedirs(path, exist_ok=True)
-            # in theory, we don't need to add a directory on its own to git.  perhaps?
-            # base_path = self.get_base_static_path()
-            # assert isinstance(base_path, AbstractGitStorageBasePath)
-            # repo = git.Repo(base_path.get_path())
-            # repo.index.add([self.get_path()])
+            #git doesn't track empty directories (or directories at all really) so no need to add it.
             return AutoCreateResults.CHANGES_MADE
 
 
@@ -533,6 +512,7 @@ class AssetsStaticSubDir(StaticSubDir[BT,DT], typing.Generic[BT,DT], abc.ABC):
         groupname = gitlab_server_routines.group_name_from_fqdn(base_path.get_fqdn())
         url = gitlab_server_routines.remote_path_for_gitasset(groupname, asset_id)
         CreateEmptySubmodule(repo, relpath, asset_id, url)
+        add_gitmodules_file(repo)
 
     def add_from_existing_routine(self, dirname: str, asset_id: str):
         """Adds an pre-existing asset to this directory at the given dirname.  Requires the asset_id of
@@ -549,6 +529,7 @@ class AssetsStaticSubDir(StaticSubDir[BT,DT], typing.Generic[BT,DT], abc.ABC):
         groupname = gitlab_server_routines.group_name_from_fqdn(base_path.get_fqdn())
         url = gitlab_server_routines.remote_path_for_gitasset(groupname, asset_id)
         AddSubmodule(repo, asset_id, relpath, url)
+        add_gitmodules_file(repo)
 
     def subdir_to_new_asset_routine(self, dirname: str):
         """converts an existing subdirectory to a new asset with a new id.
@@ -566,6 +547,7 @@ class AssetsStaticSubDir(StaticSubDir[BT,DT], typing.Generic[BT,DT], abc.ABC):
         groupname = gitlab_server_routines.group_name_from_fqdn(base_path.get_fqdn())
         url = gitlab_server_routines.remote_path_for_gitasset(groupname, asset_id)
         CreateSubmoduleFromSubDirectory(repo, relpath, asset_id, url=url)
+        add_gitmodules_file(repo)
 
 
 TABP = typing.TypeVar("TABP", bound=AbstractAssetBasePath)

@@ -26,7 +26,7 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath[BT], typing.Generi
         return ret
 
     async def automanager_routine(self, feedback_ui: AbstractFeedbackUI, entity_config: LegalEntityConfig,
-                                  container_config: ContainerAutomanagerConfigurationComponent):
+                                  container_config: ContainerAutomanagerConfigurationComponent) -> AutoManageResults:
         # We can assume we've (the root) just been updated by the automanager and that we're not in conflicted.
         # But that is all.  This means we don't need to 'pull' from remote.
         #
@@ -64,7 +64,8 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath[BT], typing.Generi
             # we need to check for working-copy dirt that's not in the index and fail based on it.
             is_dirty = self.is_dirty(False, True, True, False)
             if is_dirty:
-                await feedback_ui.output("Worktree is dirty.  Cannot auto-commit.  Canceling further auto-management.")
+                await feedback_ui.output("Root worktree is dirty.  Cannot auto-commit.  Canceling further auto-management.")
+                await feedback_ui.output(self.get_path())
                 return AutoManageResults.CANNOT_COMPLETE
 
             # Commit the index if it needs it.
@@ -87,7 +88,7 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath[BT], typing.Generi
             children = self.get_sub_desktop_asset_basepaths()
 
             for child in children:
-                child_ret = await child.automanage_routine(feedback_ui)
+                child_ret = await child.automanage_routine(feedback_ui,entity_config,container_config)
                 ret = get_worse_enum(ret, child_ret)
 
             if ret == AutoManageResults.CANNOT_COMPLETE or ret == AutoManageResults.PENDING:
@@ -103,11 +104,12 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath[BT], typing.Generi
 
     async def pre_child_assets_automanage_routine(self, feedback_ui: AbstractFeedbackUI) -> AutoManageResults:
         """Called before automanaging children.  Feel free to override but do call super()"""
-        pass
+        return AutoManageResults.CLEAN
 
     async def post_child_assets_automanage_routine(self, feedback_ui: AbstractFeedbackUI) -> AutoManageResults:
         """Called after automanaging children.  Feel free to override but do call super()"""
-        pass
+        return AutoManageResults.CLEAN
+
 
 
 # ASSET

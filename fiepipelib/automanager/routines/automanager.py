@@ -440,7 +440,7 @@ class AutoManagerRoutines(object):
         ret = {}
         for entrypoint in entrypoints:
             method = entrypoint.load()
-            method(feedback_ui, root_id, container_id, container_config, legal_entity_config, gitlab_server)
+            await method(feedback_ui, root_id, container_id, container_config, legal_entity_config, gitlab_server)
 
         #TODO: consider auto-commit here.  is there a safe atomic commit we can execute on condition of dirty index but clean everything else?
 
