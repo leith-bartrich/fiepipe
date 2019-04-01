@@ -148,15 +148,20 @@ class AutoManagerRoutines(object):
             # begin auto loop
 
             # first we loop through legal entities.
-            legal_entity_configs = self._get_active_legal_entitiy_configs()
-            for legal_entity_config in legal_entity_configs:
-                # get the particualrs
 
-                mode = legal_entity_config.get_mode()
+            registry = localregistry(get_local_user_routines())
+            all_reg_entities = registry.GetAll()
+            for reg_entity in all_reg_entities:
+                fqdn = reg_entity.get_fqdn()
+
+            #legal_entity_configs = self._get_active_legal_entitiy_configs()
+            #for legal_entity_config in legal_entity_configs:
+
+                # get the particualrs
+                #mode = legal_entity_config.get_mode()
 
                 # if the mode is none: we don't even bother.  this relieves others of checking further down the line.
-                if mode != LegalEntityMode.NONE:
-                    await self.automanage_fqdn(feedback_ui, legal_entity_config)
+                await self.automanage_fqdn(feedback_ui, fqdn)
 
             if once:
                 self.request_close()
@@ -179,16 +184,6 @@ class AutoManagerRoutines(object):
                 return item
         raise KeyError()
 
-    def _get_active_legal_entitiy_configs(self) -> typing.List[LegalEntityConfig]:
-        ret = []
-        user = get_local_user_routines()
-        man = LegalEntityConfigManager(user)
-        all = man.GetAll()
-        for item in all:
-            if item.IsActive():
-                ret.append(item)
-        return ret
-
     def resolve_gitlab_server(self, gitlab_server: str, gitlab_server_mode: GitLabServerMode, fqdn: str) -> str:
 
         if gitlab_server_mode == GitLabServerMode.AUTO:
@@ -197,24 +192,24 @@ class AutoManagerRoutines(object):
         else:
             return gitlab_server
 
-    async def automanage_fqdn(self, feedback_ui: AbstractFeedbackUI, legal_entity_config: LegalEntityConfig):
+    async def automanage_fqdn(self, feedback_ui: AbstractFeedbackUI, fqdn:str):
+
+        # pre automanage hook
+        # we call regardless of mode.
+
+        entrypoints = pkg_resources.iter_entry_points("fiepipe.plugin.automanager.pre_automanage_fqdn")
+        ret = {}
+        for entrypoint in entrypoints:
+            method = entrypoint.load()
+            await method(feedback_ui, fqdn)
+
+        try:
+            legal_entity_config = self.get_legal_entitiy_config(fqdn)
+        except KeyError as err:
+            return
 
         if legal_entity_config.get_mode() == LegalEntityMode.NONE:
             return
-
-        # #now, check if we're authoritative
-        # if legal_entity_config.is_authoritative():
-        #     await feedback_ui.output("Generating new registration from authority: " + legal_entity_config.get_fqdn())
-        #     #generate from authority, commit and push if it's different.
-        #     authority_manager = LegalEntityAuthorityManager()
-        #     authorites = authority_manager.GetByFQDN(legal_entity_config.get_fqdn())
-        #     if len(authorites) == 1:
-        #         authority = authorites[0]
-        #         new_registered = authority.generate_registered_legal_entity()
-        #         await feedback_ui.output("Registering.")
-        #         entity_registry.Set([new_registered])
-        #         legal_entity = new_registered
-        #         await feedback_ui.output("Pushing to GitLab if changed.")
 
         entity_registry = localregistry(get_local_user_routines())
         legal_entities = entity_registry.GetByFQDN(legal_entity_config.get_fqdn())
@@ -285,6 +280,15 @@ class AutoManagerRoutines(object):
 
     async def automanage_container(self, feedback_ui: AbstractFeedbackUI, legal_entity_config: LegalEntityConfig,
                                    container_id: str, gitlab_server: str):
+
+        # pre automanage hook
+        # we call regardless of mode.
+
+        entrypoints = pkg_resources.iter_entry_points("fiepipe.plugin.automanager.pre_automanage_container")
+        ret = {}
+        for entrypoint in entrypoints:
+            method = entrypoint.load()
+            await method(feedback_ui, legal_entity_config, container_id)
 
         # set up managers
         user = get_local_user_routines()
@@ -357,6 +361,17 @@ class AutoManagerRoutines(object):
     async def automanage_root(self, feedback_ui: AbstractFeedbackUI, root_id: str, container_id: str,
                               container_config: ContainerAutomanagerConfigurationComponent,
                               legal_entity_config: LegalEntityConfig, gitlab_server: str):
+
+        # pre automanage hook
+        # we call regardless of mode.
+
+        entrypoints = pkg_resources.iter_entry_points("fiepipe.plugin.automanager.pre_automanage_root")
+        ret = {}
+        for entrypoint in entrypoints:
+            method = entrypoint.load()
+            await method(feedback_ui, legal_entity_config, container_config, root_id)
+
+
         # we only execute those that are configured and are checked out.
 
         root_routines = GitRootRoutines(container_id, root_id, feedback_ui)

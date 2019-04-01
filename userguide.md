@@ -134,7 +134,7 @@ The fl.friedmans.private entity would be the entity I set up for my new nuclear 
 
 The methodstudios.com entity is where I used to work.
 
-Any really, any job I'd have over the years, would need its own legal entity.  Either that company would define one, or I might need
+And really, any job I'd have over the years, would need its own legal entity.  Either that company would define one, or I might need
 to create one.  When I was at work on a work computer, the company's legal entity might be installed for me.  But even on my home
 machine, I'd be likely
 to create it.  Just to hold on to documents that I should keep with regard to the aspect of my life that belongs to that entity.
@@ -150,7 +150,7 @@ Also, I don't have to create every legal entity on every computer.  My work comp
 And going forward, I'll probably stick to the simpler fie.us and bradley.friedman.private entities for my examples.
 
 Keep in mind, we have not actually set up any sharing or syncing or servers.  There are tools for sharing legal entities and
-managing lists of them between computers.  But we won't get into them right now.  Separate from the methods I've inlcuded in fiepip for
+managing lists of them between computers.  But we won't get into them right now.  Separate from the methods I've included in fiepipe for
 accomplishing managment of legal entities across computers, its also possible to author custom plugins for doing that as well.
 
 ### authority
@@ -188,13 +188,10 @@ When you are truly creating a version of the legal entity that should NOT subord
   * tax information
   * etc
   
-## Local site
-
-Currenlty, we're reserving some abilty to enter something other than the local site.  We may do away with this reserveration later and bring all the local site shell functionality direclty into the registered legal entity.  For now though, I just jump into it via the short command 'lssh'
-
+  
 ## Container
 
-From within the local site, we can interact with the containers command.
+From within the entity, we can interact with the containers command.
 
 In VFX/Anim land, people are used to 'Projects.'  For them, a contaienr is analagous to a 'Project.'  However, a 'Project' is only one thing you might have in a container.
 
@@ -212,7 +209,7 @@ e.g. I am an accountant and I currenlty subscribe to the following containers:
   * acct_2018
   * acct_2019
 
-in thae same company, someone else might be a contractor and only subscribe to:
+in the same company, someone else might be a contractor and only subscribe to:
   
   * project_a
   
@@ -220,13 +217,13 @@ Projects are identified by a unique ID internally.  The short names we use local
 
 Projects have short descriptions, in addition to their names, for convenience.
 
-Usually contaienrs are shared and hold top level configuration information.  They are meant to be updated infrequently by those in authority.
+Usually containers are shared and hold top level configuration information.  They are meant to be updated infrequently by those in authority.
 
 To work within a container, you enter it.  Typically, a command like `cnt enter foo` will enter the foo container.
 
 ## Git Storage
 
-Within a container, we typically move on to using the Git Storage system to start working on data and with tools.  The Git Storage system consists of two primary storage entities:
+Within a container, on a desktop, we typically move on to using the Git Storage system to start working on data and with tools.  The Git Storage system consists of two primary storage entities:
 
   * Roots
   * Assets
@@ -394,5 +391,79 @@ e.g. `houdini add_project houdini/project_01/`
 
 e.g. `houdini open h17`
 
+
 ### GitLab Server
 
+fiepipe has implemented support for centralized sharing\syncing of data and meta-data using GitLab as a server.
+
+To be clear, fiepipe is not meant to be limited to GitLab, but we are implementing GitLab first.
+
+The "gitlab_servers" command allows the user to keep track of a list of named servers and login credentials.
+
+There are gitlab commands located at various levels in other systems that use these servers.
+
+
+### Structure
+
+Structure is what makes a generic storage system, intuitive, predictable and organized.
+
+Typically, a storage root will opt-in to a type of project structure, via a plug-in command on its
+root.  The project structure will likely branch out to mange the assets and their contents.
+
+A root may opt-in to multiple structures if those structures don't conflict.
+
+The specifics of any particular structure is something that's up to the developer of said structure plugin.
+But generally, you'd expect project management tools along the lines of: 'ingest_delivery', 'manage_production_asset.'
+
+A primary goal of fiepipe, is to provide enough configurability and capability, to allow a well built project structure
+to be powerful and easy to use.
+
+
+## Auto-Manager
+
+The AutoManager is meant to handle as much management and overhead of a user's containers and storage, as possible.
+It is tightly integrated with the Structure system.
+
+The AutoManager tries to be verbose and carefully fail/inform of problems such that it does not destroy your work.  It
+tries to provide you the opportunity to fix problems early.
+
+### Auto-Creation
+
+The AutoManager will try to automatically create and commit any new/missing project structure locally.
+
+### Auto root push and pull
+
+The AutoManager will try and push any changes to the root structure early and often, so that users don't diverge.
+It will pull changes as early as possible as well, again, to avoid divergence.  One reason why it's good to use assets
+that exist in a deep root structure, is so that the root structure can be kept very light and be pushed and pulled
+frequently to reflect the existence of those assets.  This relieves the storage root from be responsible for managing
+the assets internal (file) data.
+
+The best way to keep a project from being overwhelmed with bad asset creation and organization, is to limit a
+user's permission to push to the root on the GitLab server.  The auto manager will properly inform a user if they've
+created a local asset that they don't have permission to push.
+
+In order to better manage asset creation more granular-ly, It can be useful to run a asset creation daemon on a central
+server that has permission to create assets and push to the root, and can take/manage requests to do so intelligently.
+
+### Auto-Update
+
+The AutoManager will try and detect assets that you have checked out, that you are not working on.  It will try and pull
+changes made to those assets down proactively, so you have them and don't need to worry about checking for them.  This
+too may help avoid divergence, as you're less likely to work into old data/organization.
+
+### Plugin Hooks
+
+The AutoManager routine will call out to plugins at various stages to allow plugin developers and entity command
+developers to effect its behavior.
+
+    - fiepipe.plugin.automanager.pre_automanage_fqdn
+        - await method(feedback_ui, fqdn)
+    - fiepipe.plugin.automanager.pre_automanage_container
+        - await method(feedback_ui, legal_entity_config, container_id)
+    - fiepipe.plugin.automanager.pre_automanage_root
+        - await method(feedback_ui, legal_entity_config, container_config, root_id)
+
+Some things a plugin developer might do here:
+
+    -If the FQDN is my legal entity, I use DNS to lookup the gitlab server URL and put it in the registry
