@@ -27,7 +27,6 @@ from fiepipelib.localuser.routines.localuser import get_local_user_routines
 class GitRootRoutines(GitRepoRoutines):
 
     _user: LocalUserRoutines
-    _feedback_ui: AbstractFeedbackUI = None
     _root_config: LocalRootConfiguration
     _roots_configuration_component: LocalRootConfigurationsComponent
     _roots_component: SharedGitRootsComponent
@@ -37,11 +36,10 @@ class GitRootRoutines(GitRepoRoutines):
     _root: GitRoot
     _mapper: localstoragemapper
 
-    def __init__(self, container_id: str, root_id: str, feedback_ui: AbstractFeedbackUI):
+    def __init__(self, container_id: str, root_id: str):
         self._container_routines = ContainerRoutines(container_id)
         self._local_container_routines = LocalContainerRoutines(container_id)
         self._root_id = root_id
-        self._feedback_ui = feedback_ui
 
 
 
@@ -103,7 +101,7 @@ class GitRootRoutines(GitRepoRoutines):
     def get_repo(self) -> git.Repo:
         return self.get_local_repo()
 
-    async def print_status_routine(self):
+    async def print_status_routine(self, feedback_ui:AbstractFeedbackUI):
         existsText = "absent"
         statusText = "---"
         if RepoExists(self.get_local_repo_path()):
@@ -113,10 +111,10 @@ class GitRootRoutines(GitRepoRoutines):
                 statusText = "dirty"
             else:
                 statusText = "clean"
-        await self._feedback_ui.output(
+        await feedback_ui.output(
             "root: {0} - {1} - {2} - {3}".format(self.get_local_repo_path(), self.root.GetID(), existsText, statusText))
 
-    async def print_workingasset_status_routine(self, working_asset: GitWorkingAsset):
+    async def print_workingasset_status_routine(self, working_asset: GitWorkingAsset, feedback_ui:AbstractFeedbackUI):
         existsText = "absent"
         statusText = "---"
         if working_asset.GetSubmodule().module_exists():
@@ -127,41 +125,41 @@ class GitRootRoutines(GitRepoRoutines):
                 statusText = "dirty"
             else:
                 statusText = "clean"
-        await self._feedback_ui.output(
+        await feedback_ui.output(
             "asset: {0} - {1} - {2} - {3}".format(working_asset.GetSubmodule().path, working_asset.GetAsset().GetID(),
                                                   existsText,
                                                   statusText))
 
-    async def print_submodule_status_routine(self):
+    async def print_submodule_status_routine(self, feedback_ui:AbstractFeedbackUI):
         repo = self._root_config.GetRepo(self._mapper)
         text = repo.git.submodule("status", "--recursive")
-        await self._feedback_ui.feedback(text)
+        await feedback_ui.feedback(text)
 
-    async def print_status_recursive_routine(self):
+    async def print_status_recursive_routine(self, feedback_ui:AbstractFeedbackUI):
         assets = self._root_config.GetWorkingAssets(self._mapper, True)
-        await self.print_status_routine()
+        await self.print_status_routine(feedback_ui)
         for asset in assets:
-            await self.print_workingasset_status_routine(asset)
+            await self.print_workingasset_status_routine(asset,feedback_ui)
 
-    async def init_new(self):
+    async def init_new(self, feedback_ui:AbstractFeedbackUI):
         dir = self._root_config.GetWorkingPath(self._mapper)
 
         if RepoExists(dir):
-            await self._feedback_ui.error("Already exists.")
+            await feedback_ui.error("Already exists.")
             return
 
-        await self._feedback_ui.output("Initializing Repo.")
+        await feedback_ui.output("Initializing Repo.")
         repo = InitWorkingTreeRoot(dir)
-        await self._feedback_ui.output("Installing LFS to Repo.")
+        await feedback_ui.output("Installing LFS to Repo.")
         InstallLFSRepo(repo)
-        await self._feedback_ui.output("Setting up .gitignore")
+        await feedback_ui.output("Setting up .gitignore")
         CheckCreateIgnore(repo)
-        await self._feedback_ui.output("Commiting to head")
+        await feedback_ui.output("Commiting to head")
         repo.git.commit(m="Initial commit.")
         os.chdir(dir)
         return
 
-    async def init_new_split(self, backingVolume: localvolume):
+    async def init_new_split(self, backingVolume: localvolume, feedback_ui:AbstractFeedbackUI):
         """Initializes a brand new repository for the root with an empty working tree and a repository on a
         specified backing store.  See init_new for other details.
 
@@ -171,62 +169,62 @@ class GitRootRoutines(GitRepoRoutines):
         """
 
 
-        await self._feedback_ui.output(
+        await feedback_ui.output(
             "Creating repository on backing volume: " + backingVolume.GetName() + " " + backingVolume.GetPath())
         backingRep = self._root.CreateRepositoryOnBackingVolume(backingVolume)
 
         workingtreepath = self._root_config.GetWorkingPath(self._mapper)
-        await self._feedback_ui.output(
+        await feedback_ui.output(
             "Creating working tree on working volume: " + self._root.GetName() + " " + workingtreepath)
         backingRep.git.worktree("add", workingtreepath)
         workingRepo = git.Repo(workingtreepath)
 
-        await self._feedback_ui.output("Installing LFS to Repo.")
+        await feedback_ui.output("Installing LFS to Repo.")
         InstallLFSRepo(workingRepo)
-        await self._feedback_ui.output("Setting up .gitignore")
+        await feedback_ui.output("Setting up .gitignore")
         CheckCreateIgnore(workingRepo)
-        await self._feedback_ui.output("Commiting to head")
+        await feedback_ui.output("Commiting to head")
         workingRepo.index.commit("Initial commit.")
         os.chdir(workingtreepath)
 
-    async def checkout_worktree_from_backing_routine(self, backingVolume: localvolume):
+    async def checkout_worktree_from_backing_routine(self, backingVolume: localvolume, feedback_ui:AbstractFeedbackUI):
         backingRep = self._root.GetRepositoryOnBackingVolume(backingVolume, create=False)
 
         workingtreepath = self._root_config.GetWorkingPath(self._mapper)
-        await self._feedback_ui.output(
+        await feedback_ui.output(
             "Creating working tree on working volume: " + self._root.GetName() + " " + workingtreepath)
         backingRep.git.worktree("add", workingtreepath)
 
         os.chdir(workingtreepath)
 
-    async def delete_worktree_routine(self, delete_repo_too=False, delete_if_dirty=False) -> bool:
+    async def delete_worktree_routine(self, feedback_ui:AbstractFeedbackUI, delete_repo_too=False, delete_if_dirty=False) -> bool:
         dir = self.get_local_repo_path()
         pardir = str(pathlib.Path(dir).parent)
 
         if not pathlib.Path(dir).exists():
-            await self._feedback_ui.error("Doesn't exist.")
+            await feedback_ui.error("Doesn't exist.")
             return False
 
         try:
             rep = self.get_local_repo()
         except git.InvalidGitRepositoryError:
-            await self._feedback_ui.output("Invalid git repository.  Deleting contents of folder.")
+            await feedback_ui.output("Invalid git repository.  Deleting contents of folder.")
             os.chdir(pardir)
             DeleteLocalRepo(dir)
             if pathlib.Path(dir).exists():
-                await self._feedback_ui.error("Folder not fully deleted.")
+                await feedback_ui.error("Folder not fully deleted.")
                 return False
             else:
                 return True
 
         if not rep.has_separate_working_tree():
             if not delete_repo_too:
-                await self._feedback_ui.output("The repository is inside the worktree and it would be deleted too.  Aborting.")
+                await feedback_ui.output("The repository is inside the worktree and it would be deleted too.  Aborting.")
                 return False
 
         if rep.is_dirty():
             if not delete_if_dirty:
-                await self._feedback_ui.output("The root is dirty and probably has uncommited changes.  Aborting.")
+                await feedback_ui.output("The root is dirty and probably has uncommited changes.  Aborting.")
                 return False
 
         dir = rep.working_dir
@@ -235,16 +233,16 @@ class GitRootRoutines(GitRepoRoutines):
         DeleteLocalRepo(dir)
 
         if pathlib.Path(dir).exists():
-            await self._feedback_ui.error("Not fully deleted.")
+            await feedback_ui.error("Not fully deleted.")
             return False
 
         return True
 
-    async def get_all_assets(self, recursive=True) -> typing.List[GitWorkingAsset]:
+    async def get_all_assets(self, feedback_ui:AbstractFeedbackUI, recursive=True) -> typing.List[GitWorkingAsset]:
         try:
             assets = self._root_config.GetWorkingAssets(self._mapper, recursive)
         except git.InvalidGitRepositoryError:
-            await self._feedback_ui.error("Invalid git repository.  Did you init or pull the root?")
+            await feedback_ui.error("Invalid git repository.  Did you init or pull the root?")
             raise
         return assets
 
@@ -289,7 +287,7 @@ class GitRootRoutines(GitRepoRoutines):
         rootRepo = self.get_local_repo()
         RemoveSubmodule(rootRepo, workingAsset.GetAsset().GetID())
 
-    async def create_asset_routine(self, subpath: str) -> bool:
+    async def create_asset_routine(self, subpath: str, feedback_ui:AbstractFeedbackUI) -> bool:
         """Create a new asset at the given path
 
         Usage: create [path]
@@ -301,7 +299,7 @@ class GitRootRoutines(GitRepoRoutines):
 
         if os.path.isabs(subpath):
             if not subpath.startswith(rootPath):
-                await self._feedback_ui.error("Absolute path isn't inside root path: " + subpath)
+                await feedback_ui.error("Absolute path isn't inside root path: " + subpath)
                 return False
             else:
                 subpath = os.path.relpath(subpath, rootPath)
@@ -312,16 +310,16 @@ class GitRootRoutines(GitRepoRoutines):
         (creationRepo, creationSubPath) = CanCreateSubmodule(rep, subpath)
 
         if creationRepo is None:
-            await self._feedback_ui.error("Cannot create asset at the given path.")
-            await self._feedback_ui.error(
+            await feedback_ui.error("Cannot create asset at the given path.")
+            await feedback_ui.error(
                 "It might exist already.  Or it might be in a submodule that's not currently checked out.")
             return False
 
         newid = NewAssetID()
-        await self._feedback_ui.output("Creating new submodule for asset.")
+        await feedback_ui.output("Creating new submodule for asset.")
         asset_submod = CreateFromSubDirectory(creationRepo, creationSubPath, newid, url=newid + ".git")
         asset_repo = git.Repo(asset_submod.abspath)
-        await self._feedback_ui.output("Installing LFS in asset.")
+        await feedback_ui.output("Installing LFS in asset.")
         InstallLFSRepo(asset_repo)
         return True
 
@@ -373,7 +371,7 @@ class GitRootInteractiveRoutines(GitRootRoutines):
 
     def __init__(self, container_id: str, root_id: str, feedback_ui: AbstractFeedbackUI,
                  true_false_question_ui: AbstractModalTrueFalseQuestionUI):
-        super(GitRootInteractiveRoutines, self).__init__(container_id,root_id,feedback_ui)
+        super(GitRootInteractiveRoutines, self).__init__(container_id,root_id)
         self._true_false_question_ui = true_false_question_ui
 
 
@@ -382,36 +380,36 @@ class GitRootInteractiveRoutines(GitRootRoutines):
     #_container_config: LocalContainerConfiguration
 
 
-    async def delete_worktree_interactive_routine(self):
+    async def delete_worktree_interactive_routine(self, feedback_ui:AbstractFeedbackUI):
         dir = self.get_local_repo_path()
         pardir = str(pathlib.Path(dir).parent)
 
         if not pathlib.Path(dir).exists():
-            await self._feedback_ui.error("Doesn't exist.")
+            await feedback_ui.error("Doesn't exist.")
             return
 
         try:
             rep = self.get_local_repo()
         except git.InvalidGitRepositoryError:
-            await self._feedback_ui.output("Invalid git repository.  Deleting contents of folder.")
+            await feedback_ui.output("Invalid git repository.  Deleting contents of folder.")
             os.chdir(pardir)
             DeleteLocalRepo(dir)
             if pathlib.Path(dir).exists():
-                await self._feedback_ui.error("Not fully deleted.")
+                await feedback_ui.error("Not fully deleted.")
             return
 
         if not rep.has_separate_working_tree():
             reply = await self._true_false_question_ui.execute(
                 "The repository is inside the worktree and it will be deleted too.  Are you sure?")
             if reply == False:
-                await self._feedback_ui.output("Aboriting.")
+                await feedback_ui.output("Aboriting.")
                 return
 
         if rep.is_dirty():
             reply = await self._true_false_question_ui.execute(
                 "The root is dirty and probably has uncommited changes.  Are you sure?")
             if reply == False:
-                await self._feedback_ui.output("Aboriting.")
+                await feedback_ui.output("Aboriting.")
                 return
 
         dir = rep.working_dir
@@ -420,5 +418,5 @@ class GitRootInteractiveRoutines(GitRootRoutines):
         DeleteLocalRepo(dir)
 
         if pathlib.Path(dir).exists():
-            await self._feedback_ui.error("Not fully deleted.")
+            await feedback_ui.error("Not fully deleted.")
 

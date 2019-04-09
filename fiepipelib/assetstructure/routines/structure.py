@@ -7,18 +7,20 @@ from git import Repo, Submodule
 
 from fiepipelib.automanager.data.localconfig import LegalEntityConfig
 from fiepipelib.container.local_config.data.automanager import ContainerAutomanagerConfigurationComponent
+from fiepipelib.container.local_config.data.localcontainerconfiguration import LocalContainerConfigurationManager
+from fiepipelib.localuser.routines.localuser import get_local_user_routines
 from fiepipelib.enum import get_worse_enum
-from fiepipelib.git.routines.remote import get_commits_ahead, get_commits_behind
+from fiepipelib.git.routines.remote import get_commits_ahead, get_commits_behind, exists as remote_exists
 from fiepipelib.git.routines.repo import RepoExists, is_in_conflict
 from fiepipelib.git.routines.submodules import CreateEmpty as CreateEmptySubmodule, Add as AddSubmodule, \
     CreateFromSubDirectory as CreateSubmoduleFromSubDirectory, add_gitmodules_file
 from fiepipelib.gitlabserver.routines.gitlabserver import GitLabServerRoutines
 from fiepipelib.gitstorage.data.git_asset import NewID as NewAssetID, is_valid_id
-from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines
+from fiepipelib.gitstorage.routines.gitasset import GitAssetRoutines, GitAssetInteractiveRoutines
 from fiepipelib.gitstorage.routines.gitlab_server import GitLabFQDNGitRootRoutines, GitLabFQDNGitAssetRoutines
 from fiepipelib.gitstorage.routines.gitroot import GitRootRoutines
 from fieui.FeedbackUI import AbstractFeedbackUI
-
+from fiepipelib.automanager.routines.automanager import AutoManagerRoutines
 
 """Structure is about 'static' paths.  What is 'static' and what is 'dynamic' is a bit amorphous.
 
@@ -107,7 +109,7 @@ class AbstractDirPath(AbstractPath[BT], typing.Generic[BT], abc.ABC):
     BT: the base path's type - AbstractPath"""
 
     @abc.abstractmethod
-    def get_subpaths(self) -> typing.List[AbstractPath]:
+    def get_subpaths(self) -> "typing.List[AbstractSubPath[BT]]":
         """Gets static directory entires."""
         raise NotImplementedError
 
@@ -169,6 +171,10 @@ class AbstractSubPath(AbstractPath[BT], typing.Generic[BT, DT], abc.ABC):
     def __init__(self, parent_path: DT):
         self._parent_path = parent_path
 
+    def get_name(self) -> str:
+        parent_path = self._parent_path.get_path()
+        self_path = self.get_path()
+        return os.path.relpath(self_path,parent_path)
 
 # might kill these types... or move them to automanager?
 
@@ -194,14 +200,10 @@ class AbstractGitStorageBasePath(AbstractDirPath[BT], typing.Generic[BT], abc.AB
 
     BT: Base path's type - AbstractPath"""
 
-    _gitlab_server_name: str = None
-
+    @abc.abstractmethod
     def get_gitlab_server_name(self):
         """The (local) name of the gitlab server this basepath should use for remote operations."""
-        return self._gitlab_server_name
-
-    def __init__(self, gitlab_server_name: str):
-        self._gitlab_server_name = gitlab_server_name
+        raise NotImplementedError()
 
     def get_sub_basepaths_recursive(self) -> typing.List["AbstractAssetBasePath"]:
         """A recursive version of get sub basepaths"""
@@ -256,14 +258,19 @@ class AbstractGitStorageBasePath(AbstractDirPath[BT], typing.Generic[BT], abc.AB
     def remote_is_ahead(self) -> bool:
         """return true or false if the remote is ahead of the local worktree or not"""
         repo = Repo(self.get_path())
-        remote_commmits_ahead = get_commits_ahead(repo, "master", self.get_gitlab_server_name())
-        return len(remote_commmits_ahead) > 0
+        remote_commits_ahead = get_commits_behind(repo, "master", self.get_gitlab_server_name())
+        return len(remote_commits_ahead) > 0
 
     def remote_is_behind(self) -> bool:
         """returns true or false if the remote is behind the local worktree or not"""
         repo = Repo(self.get_path())
-        remote_commmits_behind = get_commits_behind(repo, "master", self.get_gitlab_server_name())
-        return len(remote_commmits_behind) > 0
+        local_commits_ahead = get_commits_ahead(repo, "master", self.get_gitlab_server_name())
+        return len(local_commits_ahead) > 0
+
+    def remote_exists(self) -> bool:
+        repo = Repo(self.get_path())
+        return remote_exists(repo,self.get_gitlab_server_name())
+
 
     def is_conflicted(self) -> bool:
         repo = Repo(self.get_path())
@@ -323,7 +330,7 @@ class AbstractRootBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT], a
         return self._root_routines
 
     def get_fqdn(self) -> str:
-        return self.get_routines().container.get_fqdn()
+        return self.get_routines().container.GetFQDN()
 
     def get_container_id(self) -> str:
         return self.get_routines().container.GetID()
@@ -331,12 +338,24 @@ class AbstractRootBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT], a
     def get_root_id(self) -> str:
         return self.get_routines().root.GetID()
 
-    def __init__(self, gitlab_server_name: str, routines: GitRootRoutines):
+    def __init__(self, routines: GitRootRoutines):
         self._root_routines = routines
-        super().__init__(gitlab_server_name)
+        super().__init__()
 
     def get_path(self) -> str:
         return self._root_routines.get_local_repo_path()
+
+    def get_gitlab_server_name(self):
+        container_id = self.get_container_id()
+        manager = LocalContainerConfigurationManager(get_local_user_routines())
+        configs =  manager.GetByID(container_id)
+        if len(configs) == 0:
+            raise KeyError(container_id)
+        config = configs[0]
+        automanager_routines = AutoManagerRoutines(0.0)
+        container_automan_config = automanager_routines.get_container_config(config)
+        container_automan_config.Load()
+        return container_automan_config.get_root_gitlab_server(self.get_root_id())
 
     def get_gitlab_root_routines(self) -> GitLabFQDNGitRootRoutines:
         """Gets GitLabFQDNGitRootRooutines for this root."""
@@ -380,26 +399,41 @@ class AbstractAssetBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT]):
 
     def get_asset_id(self) -> str:
         """Gets the asset_id of the git asset at this base-path"""
-        return self.get_asset_id()
+        return self._asset_routines.working_asset.GetAsset().GetID()
 
-    def __init__(self, gitlab_server_name: str, routines: GitAssetRoutines):
+    def __init__(self, routines: GitAssetRoutines):
         self._asset_routines = routines
-        super().__init__(gitlab_server_name)
+        super().__init__()
 
     def get_path(self) -> str:
         return self._asset_routines.abs_path
+
+    def get_gitlab_server_name(self):
+        container_id = self.get_container_id()
+        manager = LocalContainerConfigurationManager(get_local_user_routines())
+        configs =  manager.GetByID(container_id)
+        if len(configs) == 0:
+            raise KeyError(container_id)
+        config = configs[0]
+        automanager_routines = AutoManagerRoutines(0.0)
+        container_automan_config = automanager_routines.get_container_config(config)
+        container_automan_config.Load()
+        return container_automan_config.get_asset_gitlab_server(self.get_asset_id())
+
 
     def get_gitlab_asset_routines(self) -> GitLabFQDNGitAssetRoutines:
         """Gets GitLabFQDNGitAssetRooutines for this root."""
         gitlab_server_routines = GitLabServerRoutines(self.get_gitlab_server_name())
         asset_routines = self.get_routines()
         return GitLabFQDNGitAssetRoutines(gitlab_server_routines, asset_routines.working_asset,
-                                          asset_routines.container.get_fqdn())
+                                          asset_routines.container.GetFQDN())
 
     async def automanager_create_self(self, feedback_ui: AbstractFeedbackUI, entity_config: LegalEntityConfig,
                                       container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
-        if not RepoExists(self.get_routines().abs_path):
-            await feedback_ui.error("Repository doesn't exist: " + self.get_routines().abs_path)
+        routines = self.get_routines()
+        routines.load()
+        if not RepoExists(routines.abs_path):
+            await feedback_ui.error("Repository doesn't exist: " + routines.abs_path)
             return AutoCreateResults.CANNOT_COMPLETE
         # TODO: check that the module is checked-out first.
         # it's possible the path results in a parent repo rather than this module?  Need to check that.
@@ -481,10 +515,8 @@ class AssetsStaticSubDir(StaticSubDir[BT,DT], typing.Generic[BT,DT], abc.ABC):
                 submods[submod_dirname] = submod
         return submods
 
-    def get_asset_routines_by_dirname(self, dirname: str) -> GitAssetRoutines:
-        """Gets an instance of GitAssetRoutines for a specific named sub-asset.
-        Typically, you'll use get_submodules to get a named list, and then use the name to get the Routines.
-        It's always possible someone deleted the asset in the interim, resulting in an exception throw."""
+    def get_ids_by_dirname(self, dirname:str) -> (str,str,str):
+        """Returns container_id, root_id, and asset_id for the given dirname"""
         submods = self.get_submodules()
         if dirname not in submods.keys():
             raise FileNotFoundError(dirname)
@@ -493,8 +525,23 @@ class AssetsStaticSubDir(StaticSubDir[BT,DT], typing.Generic[BT,DT], abc.ABC):
         assert isinstance(base_path, AbstractGitStorageBasePath)
         if not is_valid_id(submod.name):
             raise FileNotFoundError("Submod is not a valid Git Asset.  The name isn't a proper id: " + submod.name)
-        return GitAssetRoutines(container_id=base_path.get_container_id(), root_id=base_path.get_root_id(),
-                                asset_id=submod.name, feedback_ui=feedback_ui)
+        return base_path.get_container_id(),base_path.get_root_id(),submod.name
+
+    def get_asset_routines_by_dirname(self, dirname: str) -> GitAssetRoutines:
+        """Gets an instance of GitAssetRoutines for a specific named sub-asset.
+        """
+        container_id, root_id, asset_id = self.get_ids_by_dirname(dirname)
+        return GitAssetRoutines(container_id=container_id, root_id=root_id,
+                                asset_id=asset_id)
+
+    def get_asset_interactive_routines_by_dirname(self, dirname: str) -> GitAssetInteractiveRoutines:
+        """Gets an instance of GitAssetInteractiveRoutines for a specific named sub-asset.
+        """
+        container_id, root_id, asset_id = self.get_ids_by_dirname(dirname)
+        return GitAssetInteractiveRoutines(container_id=container_id, root_id=root_id,
+                                asset_id=asset_id)
+
+
 
     def create_new_empty_asset(self, dirname: str):
         """Creates a new empty asset with a new id at the given directory name.
@@ -575,5 +622,5 @@ class GenericAssetBasePathsSubDir(AssetsStaticSubDir[BT,DT], typing.Generic[BT, 
             submod = submods[dirname]
             # only return a basepath if it's been checked out.
             if submod.module_exists():
-                ret.append(self.get_asset_basepath_by_dirname(dirname, feedback_ui))
+                ret.append(self.get_asset_basepath_by_dirname(dirname))
         return ret

@@ -10,7 +10,6 @@ from fiepipelib.container.local_config.data.automanager import ContainerAutomana
 from fiepipelib.enum import get_worse_enum
 from fieui.FeedbackUI import AbstractFeedbackUI
 
-# ROOT
 
 class AbstractDesktopProjectRootBasePath(AbstractRootBasePath[BT], typing.Generic[BT], abc.ABC):
     """A convenience base path base class for a Desktop style project root.
@@ -110,11 +109,9 @@ class AbstractDesktopProjectRootBasePath(AbstractRootBasePath[BT], typing.Generi
         """Called after automanaging children.  Feel free to override but do call super()"""
         return AutoManageResults.CLEAN
 
+BDT = typing.TypeVar("BDT", bound=AbstractDesktopProjectRootBasePath)
 
-
-# ASSET
-
-class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath[BT], typing.Generic[BT], abc.ABC):
+class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath[BDT], typing.Generic[BDT], abc.ABC):
     """A convenience base path base class for Desktop style asset in a project root.
     Assumes distributed project system, contributed to and pulled by many
     different desktop users across multiple sites/networks/segments/planets/solar-systems/etc."""
@@ -153,8 +150,10 @@ class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath[BT], typing.Gene
             # will push versions.  We don't need to do that here.
 
             ret = AutoManageResults.CLEAN
+            routines = self.get_routines()
+            routines.load()
 
-            if not self.get_routines().is_init():
+            if not routines.is_init():
                 # if we-re not checked out, then we're okay.  It's fine to not have an asset checked out.  That just means
                 # it's opting out of auto-management for now.
                 return AutoManageResults.CLEAN
@@ -215,14 +214,23 @@ class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath[BT], typing.Gene
                 await feedback_ui.warn("Cannot auto-manage further.")
                 return AutoManageResults.CANNOT_COMPLETE
 
-            # we need to detect and push if we're ahead, as early as possible, to hopefully avoid conflicts later.
-            # this is optimistic or eventual convergence logic.
-            remote_is_ahead = self.remote_is_ahead()
-            remote_is_behind = self.remote_is_behind()
 
-            if remote_is_behind and not remote_is_ahead:
+            remote_exists = self.remote_exists()
+
+            if remote_exists:
+
+                # we need to detect and push if we're ahead, as early as possible, to hopefully avoid conflicts later.
+                # this is optimistic or eventual convergence logic.
+                remote_is_ahead = self.remote_is_ahead()
+                remote_is_behind = self.remote_is_behind()
+
+                if remote_is_behind and not remote_is_ahead:
+                    success = await self.get_gitlab_asset_routines().push_sub_routine(feedback_ui, 'master', False)
+                    # we don't care about success or failure here.  We'll check this again in post-children.
+            else:
+
+                #we push it early if it doesn't exist yet.
                 success = await self.get_gitlab_asset_routines().push_sub_routine(feedback_ui, 'master', False)
-                # we don't care about success or failure here.  We'll check this again in post-children.
 
             # if we're unforunate enough to be both ahead and behind, that'll be caught later in post-children.
             # children don't care if their parent might conflict in a bit.  We need to resolve them first.
@@ -421,8 +429,8 @@ class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath[BT], typing.Gene
                 else:
                     ret = get_worse_enum(ret, AutoManageResults.CLEAN)
 
-                # done auto-managing desktop asset.
-                return ret
+            # done auto-managing desktop asset.
+            return ret
         else:
             await feedback_ui.error("Unsupported entity auto-manager mode.")
             return AutoManageResults.CANNOT_COMPLETE

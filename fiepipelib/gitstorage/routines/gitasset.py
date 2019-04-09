@@ -18,20 +18,18 @@ class GitAssetRoutines(GitRepoRoutines):
     _root_id: str = None
     _asset_id: str = None
 
-    _feedback_ui: AbstractFeedbackUI = None
 
-    def __init__(self, container_id: str, root_id: str, asset_id: str, feedback_ui: AbstractFeedbackUI):
+    def __init__(self, container_id: str, root_id: str, asset_id: str):
         self._container_id = container_id
         self._root_id = root_id
         self._asset_id = asset_id
-        self._feedback_ui = feedback_ui
 
     _root_routines: GitRootRoutines
     _asset: GitAsset
     _working_asset: GitWorkingAsset
 
     def load(self):
-        self._root_routines = GitRootRoutines(self._container_id,self._root_id,self._feedback_ui)
+        self._root_routines = GitRootRoutines(self._container_id,self._root_id)
         self._root_routines.load()
         self._asset = GitAsset(self._asset_id)
         submod = self._root_routines.get_repo().submodule(self._asset_id)
@@ -47,7 +45,7 @@ class GitAssetRoutines(GitRepoRoutines):
 
     @property
     def abs_path(self):
-        return self._working_asset.GetSubmodule().abspath
+        return self.working_asset.GetSubmodule().abspath
 
     @property
     def root(self):
@@ -65,6 +63,9 @@ class GitAssetRoutines(GitRepoRoutines):
     def container(self):
         return self._root_routines.container
 
+    @property
+    def container_config(self):
+        return self._root_routines.local_container_config
 
     def get_repo(self) -> git.Repo:
         return self._working_asset.GetRepo()
@@ -74,7 +75,7 @@ class GitAssetRoutines(GitRepoRoutines):
         all_sub_assets = self._working_asset.GetSubWorkingAssets()
         for sub_asset in all_sub_assets:
             ret.append(
-                GitAssetRoutines(self._container_id, self._root_id, sub_asset.GetAsset().GetID(), self._feedback_ui))
+                GitAssetRoutines(self._container_id, self._root_id, sub_asset.GetAsset().GetID()))
         return ret
 
     async def deinit(self):
@@ -97,7 +98,7 @@ class GitAssetRoutines(GitRepoRoutines):
             await self.deinit()
 
     def is_init(self) -> bool:
-        submod = self._working_asset.GetSubmodule()
+        submod = self.working_asset.GetSubmodule()
         if not submod.exists():
             return False
         try:
@@ -108,7 +109,7 @@ class GitAssetRoutines(GitRepoRoutines):
 
 
 
-    async def commit_recursive(self, log_message: str):
+    async def commit_recursive(self, log_message: str, feedback_ui:AbstractFeedbackUI):
         if not self._working_asset.IsCheckedOut():
             return
         repo = self._working_asset.GetRepo()
@@ -120,9 +121,9 @@ class GitAssetRoutines(GitRepoRoutines):
             sub_asset_routines.load()
             await sub_asset_routines.commit_recursive(log_message=log_message)
         if repo.is_dirty():
-            await self._feedback_ui.feedback("Commiting: " + self._working_asset.GetSubmodule().path)
+            await feedback_ui.feedback("Commiting: " + self._working_asset.GetSubmodule().path)
             log = repo.git.commit("-m" + shlex.quote(log_message))
-            await self._feedback_ui.output(log)
+            await feedback_ui.output(log)
 
     def get_config_names(self) -> typing.List[str]:
         """Returns names of config files in the asset.  No file extensions."""

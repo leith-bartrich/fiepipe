@@ -6,7 +6,7 @@ import git
 import pkg_resources
 
 from fiepipelib.automanager.data.localconfig import LegalEntityConfig, \
-    LegalEntityConfigManager, LegalEntityMode, GitLabServerMode
+    LegalEntityConfigManager, LegalEntityMode
 from fiepipelib.container.local_config.data.automanager import ContainerAutomanagerConfigurationComponent
 from fiepipelib.container.local_config.data.localcontainerconfiguration import LocalContainerConfigurationManager
 from fiepipelib.container.shared.data.container import LocalContainerManager
@@ -26,7 +26,7 @@ from fieui.AbstractEnumChoiceModal import AbstractEnumChoiceModal
 from fieui.FeedbackUI import AbstractFeedbackUI
 from fieui.InputDefaultModalUI import AbstractInputDefaultModalUI
 from fieui.ModalTrueFalseDefaultQuestionUI import AbstractModalTrueFalseDefaultQuestionUI
-
+from fiepipelib.container.local_config.data.localcontainerconfiguration import LocalContainerConfiguration
 
 class LegalEntityRoutines(AbstractLocalManagedRoutines[LegalEntityConfig]):
 
@@ -50,10 +50,6 @@ class LegalEntityModeChoiceUI(AbstractEnumChoiceModal[LegalEntityMode], abc.ABC)
     pass
 
 
-class GitlabServerModeCoiceUI(AbstractEnumChoiceModal[GitLabServerMode], abc.ABC):
-    pass
-
-
 class GitlabServerNameUI(AbstractInputDefaultModalUI[str]):
 
     def validate(self, v: str) -> typing.Tuple[bool, str]:
@@ -62,16 +58,14 @@ class GitlabServerNameUI(AbstractInputDefaultModalUI[str]):
 
 class LegalEntityInteractiveRoutines(LegalEntityRoutines, AbstractLocalManagedInteractiveRoutines[LegalEntityConfig]):
     _legal_entity_mode_ui: LegalEntityModeChoiceUI = None
-    _gitlab_server_mode_ui: GitlabServerModeCoiceUI = None
     _gitlab_server_ui: GitlabServerNameUI = None
     _active_ui: AbstractModalTrueFalseDefaultQuestionUI = None
 
     def __init__(self, feedback_ui: AbstractFeedbackUI, legal_entity_mode_ui: LegalEntityModeChoiceUI,
-                 gitlab_server_mode_ui: GitlabServerModeCoiceUI, gitlab_server_ui: GitlabServerNameUI,
+                  gitlab_server_ui: GitlabServerNameUI,
                  active_ui: AbstractModalTrueFalseDefaultQuestionUI):
         super().__init__(feedback_ui)
         self._legal_entity_mode_ui = legal_entity_mode_ui
-        self._gitlab_server_mode_ui = gitlab_server_mode_ui
         self._gitlab_server_ui = gitlab_server_ui
         self._active_ui = active_ui
 
@@ -85,16 +79,13 @@ class LegalEntityInteractiveRoutines(LegalEntityRoutines, AbstractLocalManagedIn
             if item.get_fqdn().lower() == fqdn.lower():
                 config = item
         if config == None:
-            config = man.FromParameters(fqdn, True, LegalEntityMode.NONE, GitLabServerMode.AUTO, "gitlab." + fqdn)
+            config = man.FromParameters(fqdn, True, LegalEntityMode.NONE, "gitlab." + fqdn)
 
         # we have a config to update now.
 
         await self.get_feedback_ui().output("configuring fqdn: " + fqdn)
         legal_entity_mode = await self._legal_entity_mode_ui.execute("Legal Entity mode?")
         config.set_mode(legal_entity_mode)
-
-        gitlab_server_mode = await self._gitlab_server_mode_ui.execute("Gitlab server mode?")
-        config.set_gitlab_server_mode(gitlab_server_mode)
 
         gitlab_server = await self._gitlab_server_ui.execute("Gitlab server name?", config.get_gitlab_server())
         config.set_gitlab_server(gitlab_server)
@@ -184,13 +175,10 @@ class AutoManagerRoutines(object):
                 return item
         raise KeyError()
 
-    def resolve_gitlab_server(self, gitlab_server: str, gitlab_server_mode: GitLabServerMode, fqdn: str) -> str:
+    def get_container_config(self, local_container_config:LocalContainerConfiguration):
+        return ContainerAutomanagerConfigurationComponent(local_container_config)
 
-        if gitlab_server_mode == GitLabServerMode.AUTO:
-            # TODO: MUCH BETTER THING HERE!
-            return "gitlab.fiepipe." + fqdn
-        else:
-            return gitlab_server
+
 
     async def automanage_fqdn(self, feedback_ui: AbstractFeedbackUI, fqdn:str):
 
@@ -226,9 +214,7 @@ class AutoManagerRoutines(object):
 
         # resolve gitlab server name
 
-        gitlab_server = self.resolve_gitlab_server(legal_entity_config.get_gitlab_server(),
-                                                   legal_entity_config.get_gitlab_server_mode(),
-                                                   legal_entity_config.get_fqdn())
+        gitlab_server = legal_entity_config.get_gitlab_server()
 
         await feedback_ui.output("Using GitLab Server: " + gitlab_server)
 
@@ -266,8 +252,6 @@ class AutoManagerRoutines(object):
         # If we have any local changes, we'll end up pushing them later.
 
         # Dirty is probably okay here.  We don't need to check for that.
-
-        # TODO: Plugin Hooks?
 
         # next we go through the containers.
         user = get_local_user_routines()
@@ -324,9 +308,8 @@ class AutoManagerRoutines(object):
         await feedback_ui.output("Automanaging container: " + container.GetShortName())
 
         # resolve new gitlab server
-        gitlab_server = self.resolve_gitlab_server(config_component.get_gitlab_server(),
-                                                   config_component.get_gitlab_server_mode(),
-                                                   legal_entity_config.get_fqdn())
+        gitlab_server =  config_component.get_gitlab_server()
+
         await feedback_ui.output("Using GitLab Server: " + gitlab_server)
 
         gitlab_server_man = GitLabServerManager(get_local_user_routines())
@@ -374,7 +357,7 @@ class AutoManagerRoutines(object):
 
         # we only execute those that are configured and are checked out.
 
-        root_routines = GitRootRoutines(container_id, root_id, feedback_ui)
+        root_routines = GitRootRoutines(container_id, root_id)
         root_routines.load()
 
         await feedback_ui.output("Automanaging root: " + root_routines.root.GetName())
@@ -457,7 +440,6 @@ class AutoManagerRoutines(object):
             method = entrypoint.load()
             await method(feedback_ui, root_id, container_id, container_config, legal_entity_config, gitlab_server)
 
-        #TODO: consider auto-commit here.  is there a safe atomic commit we can execute on condition of dirty index but clean everything else?
 
 
 

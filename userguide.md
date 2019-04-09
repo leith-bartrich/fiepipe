@@ -467,3 +467,6 @@ developers to effect its behavior.
 Some things a plugin developer might do here:
 
     -If the FQDN is my legal entity, I use DNS to lookup the gitlab server URL and put it in the registry
+    
+AutoManager hooks are a great place to execute configuration management and maintenance because they loop through context
+methodically and perpetually.

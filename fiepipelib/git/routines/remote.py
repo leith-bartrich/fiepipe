@@ -18,6 +18,7 @@ def create_update_remote(repo: git.Repo, name: str, url: str):
 
 
 def get_commits_behind(repo: git.Repo, branch: str, remote: str) -> typing.List[git.Commit]:
+    """remote commits ahead of local"""
     ret = []
     iter = repo.iter_commits(branch + ".." + remote + "/" + branch)
     for commit in iter:
@@ -26,6 +27,7 @@ def get_commits_behind(repo: git.Repo, branch: str, remote: str) -> typing.List[
 
 
 def get_commits_ahead(repo: git.Repo, branch: str, remote: str) -> typing.List[git.Commit]:
+    """local commits ahead of remote"""
     ret = []
     iter = repo.iter_commits(remote + "/" + branch + ".." + branch)
     for commit in iter:
