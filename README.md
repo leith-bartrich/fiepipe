@@ -19,33 +19,46 @@ digital labor on digital assets and requires digital workflow managment.
 Therefore, all the best practices of working in digital VFX and animation
 become relevant.  And therefore fiepipe becomes relevant.
 
+## Sub-Projects
+fiepipe is the base-library.  Two separate but sub-projects are important, and probably what you want.
+
+-fiepipe_desktop is a subproject that implements desktop tools.  Such as the all important fiepipe command.
+On a desktop, fiepipe_desktop is what you want most, and fiepipe is a dependency for fiepipe-desktop.
+
+-fiellc my (Bradley Friedman) LLC's plugin/command package.  For now, it also contains a lot of application specific development.
+It has fiepipe-desktop and fiepipe as dependancies.  As they become standard or stable, they will be migrated to other sub-projeccts.
+
 ## STATUS:
 
 fiepipe is currently in pre-alpha stage.
 
 I'm trying to build it and use it myself.  I expect to code it while I use it.
-I guarontee nothing.  Use it at your own risk.  And probably, if you want to use
+I guarantee nothing.  Use it at your own risk.  And probably, if you want to use
 it, you'd do well to contact me.
+
+There is currently a master branch and a stable branch for the project, and the sub-projects.
+The stable branch isn't so stable.  But it usually does at least run, and tries to represent
+some kind of 'currently usable' state.
 
 
 ## INSTALL:
 
-For now, there are two recomended ways to install fiepipe directly.  Either
+For now, there are two recommended ways to install fiepipe directly.  Either
 to just use it, or to develop it while you use it.
 
-Installs are generally aqcuired via github and use a standard setup.py file.
-This should be secure because you are trusting HTTPS (not HTTP) to guarontee that github is
+Installs are generally acquired via github and use a standard setup.py file.
+This should be secure because you are trusting HTTPS (not HTTP) to guarantee that github is
 actually github (and not an impostor or man in the middle).  And in turn you trust github
-to guarontee that I'm me.  And you in turn trust me.
+to guarantee that I'm me.  And you in turn trust me.
 
 
 ## INSTALL FOR USE:
 
 To just install it system wide for use, issue a command to pip which tells it to install from github.
 
-For example, the master branch from my development repository:
+For example, the stable branch from my development repository:
 
-`pip install git+https://github.com/leith-bartrich/fiepipe.git@master`
+`pip install git+https://github.com/leith-bartrich/fiepipe.git@stable`
 
 upgrades can be acquired using pip's -U or --upgrade flag:
 
@@ -59,11 +72,11 @@ your system python clean.  Or to test new versions.
 
 Development installs typically don't originate fully from pip because you're likely forking the
 source-code yourself.  Meaning: you probably have to check it out yourself from a specific
-account or repository becasue you're developing.
+account or repository because you're developing.
 
 Once you've checked out the code, you can use pip or the setup.py file.
 
-pip is often better at getting precompiled versions of dependenies from pypi.  A pip
+pip is often better at getting precompiled versions of dependencies from pypi.  A pip
 install for development might be:
 
 `pip install -e .`
@@ -72,8 +85,13 @@ Or, running setup.py yourself might look like:
 
 `python setup.py develop`
 
-you may need to ocassionally re-run the setup.py file in develop mode if you edit the setup.py file
+you may need to occasionally re-run the setup.py file in develop mode if you edit the setup.py file
 in a way that requires it.
 
 Similarly to standard installs, you may find python virtual environments very useful here to keep
 a development version and production version separate from one another.
+
+## DEVELOPMENT
+
+I myself use PyCharm for development and have two separate python venv environments that I use to both
+develop/test/use the two branches on my systems.
