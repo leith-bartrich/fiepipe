@@ -210,9 +210,6 @@ class AutoManagerRoutines(object):
         await feedback_ui.output(
             "Found legal entity registration.  Beginning update: " + legal_entity_config.get_fqdn())
 
-        # TODO: Update Registration from DNS and/or GitLab? checking signature?
-
-        # resolve gitlab server name
 
         gitlab_server = legal_entity_config.get_gitlab_server()
 
@@ -235,10 +232,12 @@ class AutoManagerRoutines(object):
         container_management_routines = FQDNContainerManagementRoutines(feedback_ui, legal_entity_config.get_fqdn())
         gitlab_container_routines = GitlabManagedContainerRoutines(feedback_ui, container_management_routines,
                                                                    gitlab_server_routines)
+
         try:
             await gitlab_container_routines.pull_all_routine(groupname)
         except git.GitCommandError as err:
-            await feedback_ui.error("There was an error pulling containers from git:")
+            await feedback_ui.error("There was an error pulling containers from the gitlab server:")
+            await feedback_ui.error(str(err.command))
             await feedback_ui.error(str(err.stderr))
             # since it is possible that a shared container effects the nature of the gitlab (net service) content, we fail here.
             # in theory, we could set a flag that means, 'local managment only from here on' but for now, we just move on.
@@ -320,12 +319,13 @@ class AutoManagerRoutines(object):
             return
 
         # first, we attempt to push any changes to the shared container to gitlab.
-        gitlab_server_routines = GitLabServerRoutines(gitlab_server)
-        groupname = gitlab_server_routines.group_name_from_fqdn(legal_entity_config.get_fqdn())
+        # note we're pushing to the entity gitlab here.
+        entity_gitlab_server_routines = GitLabServerRoutines(legal_entity_config.get_gitlab_server())
+        groupname = entity_gitlab_server_routines.group_name_from_fqdn(legal_entity_config.get_fqdn())
         container_management_routines = FQDNContainerManagementRoutines(feedback_ui, legal_entity_config.get_fqdn())
         gitlab_container_routines = GitlabManagedContainerRoutines(feedback_ui, container_management_routines,
-                                                                   gitlab_server_routines)
-        await feedback_ui.output("Pushing any local container changes (if they exist) to GitLab.")
+                                                                   entity_gitlab_server_routines)
+        await feedback_ui.output("Pushing any local container changes (if they exist) to legal entity's GitLab.")
         # TODO: Gracefully inform upon failure due to permissions?
         await gitlab_container_routines.push_routine(groupname, [container.GetShortName()])
         # a failed push isn't a problem.  we keep going.
