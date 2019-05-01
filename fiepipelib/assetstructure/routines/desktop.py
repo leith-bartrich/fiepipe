@@ -150,7 +150,7 @@ class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath[BDT], typing.Gen
             # will push versions.  We don't need to do that here.
 
             ret = AutoManageResults.CLEAN
-            routines = self.get_routines()
+            routines = self.get_asset_routines()
             routines.load()
 
             if not routines.is_init():
@@ -210,7 +210,7 @@ class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath[BDT], typing.Gen
             # first, any conflict is a problem.
             is_conflicted = self.is_conflicted()
             if is_conflicted:
-                await feedback_ui.warn("Asset is in conflict: " + self.get_routines().abs_path)
+                await feedback_ui.warn("Asset is in conflict: " + self.get_asset_routines().abs_path)
                 await feedback_ui.warn("Cannot auto-manage further.")
                 return AutoManageResults.CANNOT_COMPLETE
 
@@ -271,7 +271,7 @@ class AbstractDesktopProjectAssetBasePath(AbstractAssetBasePath[BDT], typing.Gen
                         ret = get_worse_enum(ret, AutoManageResults.DIRTY)
                     else:
                         await feedback_ui.output("The worktree is clean.  Attempting auto-commit.")
-                        repo = self.get_routines().get_repo()
+                        repo = self.get_asset_routines().get_repo()
                         try:
                             repo.index.commit("Auto-manager git-asset structure auto-commit")
                         except git.GitCommandError as err:

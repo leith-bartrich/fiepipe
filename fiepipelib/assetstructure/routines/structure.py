@@ -6,6 +6,7 @@ from enum import Enum
 from git import Repo, Submodule
 
 from fiepipelib.automanager.data.localconfig import LegalEntityConfig
+from fiepipelib.automanager.routines.automanager import AutoManagerRoutines
 from fiepipelib.container.local_config.data.automanager import ContainerAutomanagerConfigurationComponent
 from fiepipelib.container.local_config.data.localcontainerconfiguration import LocalContainerConfigurationManager
 from fiepipelib.localuser.routines.localuser import get_local_user_routines
@@ -315,8 +316,9 @@ class AbstractGitStorageBasePath(AbstractDirPath[BT], typing.Generic[BT], abc.AB
         return repo.is_dirty(index=consider_index, working_tree=consider_working_tree,
                              untracked_files=consider_untracked_files, submodules=consider_submodule_changes)
 
+TARBP = typing.TypeVar("TARBP", bound= "AbstractRootBasePath")
 
-class AbstractRootBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT], abc.ABC):
+class AbstractRootBasePath(AbstractGitStorageBasePath[TARBP], typing.Generic[TARBP], abc.ABC):
     """A basepath based on a git storage root
 
     Generics BT
@@ -375,8 +377,9 @@ class AbstractRootBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT], a
                                   container_config: ContainerAutomanagerConfigurationComponent) -> AutoManageResults:
         raise NotImplementedError()
 
+TAABP = typing.TypeVar("TAABP", bound="AbstractAssetBasePath")
 
-class AbstractAssetBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT]):
+class AbstractAssetBasePath(AbstractGitStorageBasePath[TAABP], typing.Generic[TAABP]):
     """A base-path for a git storage asset.
 
     Generics BT
@@ -384,18 +387,18 @@ class AbstractAssetBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT]):
     BT: base path's type - Abstract Path"""
     _asset_routines: GitAssetRoutines
 
-    def get_routines(self):
+    def get_asset_routines(self):
         """Gets the GitAssetRoutines"""
         return self._asset_routines
 
     def get_fqdn(self) -> str:
-        return self.get_routines().container.get_fqdn()
+        return self.get_asset_routines().container.GetFQDN()
 
     def get_container_id(self) -> str:
-        return self.get_routines().container.GetID()
+        return self.get_asset_routines().container.GetID()
 
     def get_root_id(self) -> str:
-        return self.get_routines().root.GetID()
+        return self.get_asset_routines().root.GetID()
 
     def get_asset_id(self) -> str:
         """Gets the asset_id of the git asset at this base-path"""
@@ -424,13 +427,13 @@ class AbstractAssetBasePath(AbstractGitStorageBasePath[BT], typing.Generic[BT]):
     def get_gitlab_asset_routines(self) -> GitLabFQDNGitAssetRoutines:
         """Gets GitLabFQDNGitAssetRooutines for this root."""
         gitlab_server_routines = GitLabServerRoutines(self.get_gitlab_server_name())
-        asset_routines = self.get_routines()
+        asset_routines = self.get_asset_routines()
         return GitLabFQDNGitAssetRoutines(gitlab_server_routines, asset_routines.working_asset,
                                           asset_routines.container.GetFQDN())
 
     async def automanager_create_self(self, feedback_ui: AbstractFeedbackUI, entity_config: LegalEntityConfig,
                                       container_config: ContainerAutomanagerConfigurationComponent) -> 'AutoCreateResults':
-        routines = self.get_routines()
+        routines = self.get_asset_routines()
         routines.load()
         if not RepoExists(routines.abs_path):
             await feedback_ui.error("Repository doesn't exist: " + routines.abs_path)
@@ -542,7 +545,6 @@ class AssetsStaticSubDir(StaticSubDir[BT,DT], typing.Generic[BT,DT], abc.ABC):
                                 asset_id=asset_id)
 
 
-
     def create_new_empty_asset(self, dirname: str):
         """Creates a new empty asset with a new id at the given directory name.
         Will throw an exception if the directory exists."""
@@ -624,3 +626,12 @@ class GenericAssetBasePathsSubDir(AssetsStaticSubDir[BT,DT], typing.Generic[BT, 
             if submod.module_exists():
                 ret.append(self.get_asset_basepath_by_dirname(dirname))
         return ret
+
+    async def autocreate_asset_by_dirname(self, dirname: str, feedback_ui:AbstractFeedbackUI):
+        asset_base_path = self.get_asset_basepath_by_dirname(dirname)
+        asset_routines = asset_base_path.get_asset_routines()
+        asset_routines.load()
+        automanager_routines = AutoManagerRoutines(0.0)
+        entity_config = automanager_routines.get_legal_entitiy_config(asset_routines.container.GetFQDN())
+        container_config = automanager_routines.get_container_config(asset_routines.container_config)
+        await asset_base_path.automanager_create(feedback_ui,entity_config,container_config)

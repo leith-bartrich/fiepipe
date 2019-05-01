@@ -32,8 +32,20 @@ class GitAssetRoutines(GitRepoRoutines):
         self._root_routines = GitRootRoutines(self._container_id,self._root_id)
         self._root_routines.load()
         self._asset = GitAsset(self._asset_id)
-        submod = self._root_routines.get_repo().submodule(self._asset_id)
+        submod = self.get_submodule_recursive(self._root_routines.get_repo(),self._asset_id)
+        #submod = self._root_routines.get_repo().submodule(self._asset_id)
         self._working_asset = GitWorkingAsset(submod)
+
+    def get_submodule_recursive(self, repo:git.Repo, asset_id:str) -> git.Submodule:
+        for submod in repo.submodules:
+            assert isinstance(submod,git.Submodule)
+            if submod.name == asset_id:
+                return submod
+            else:
+                found = self.get_submodule_recursive(submod.module(), asset_id)
+                if found is not None:
+                    return found
+        return None
 
     @property
     def working_asset(self):
