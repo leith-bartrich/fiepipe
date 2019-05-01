@@ -247,6 +247,19 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
         """The locally managed type routines."""
         raise NotImplementedError()
 
+    async def remote_exists(self, group_name:str):
+        server = self.get_server_routines().get_server()
+        local_path = self.get_server_routines().local_path_for_type_registry(server.get_name(), group_name,
+                                                                             self.get_typename())
+
+        if not RepoExists(local_path):
+            await self.get_feedback_ui().error(
+                "No local worktree.  You can create an empty one with init_local or use a pull command to get an existing one.")
+            return
+
+        repo = git.Repo(local_path)
+        return exists(repo,server.get_name())
+
     async def push_all_routine(self, group_name: str):
         """
         Pushes all the items from the manager to gitlab.

@@ -514,7 +514,8 @@ class AssetsStaticSubDir(StaticSubDir[BT,DT], typing.Generic[BT,DT], abc.ABC):
         for submod in repo.submodules:
             assert isinstance(submod, Submodule)
             submod_parent_dir, submod_dirname = os.path.split(submod.abspath)
-            if os.path.samefile(submod_parent_dir, dir_path):
+            #we compare normpaths here because samepath actually checks, files, not paths.
+            if os.path.normpath(submod_parent_dir) == os.path.normpath(dir_path):
                 submods[submod_dirname] = submod
         return submods
 
