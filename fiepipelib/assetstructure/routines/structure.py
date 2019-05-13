@@ -545,6 +545,16 @@ class AssetsStaticSubDir(StaticSubDir[BT,DT], typing.Generic[BT,DT], abc.ABC):
         return GitAssetInteractiveRoutines(container_id=container_id, root_id=root_id,
                                 asset_id=asset_id)
 
+    def get_asset_gitlab_routines_by_dirname(self, dirname:str) -> GitLabFQDNGitAssetRoutines:
+        base_path = self.get_base_static_path()
+        assert isinstance(base_path,AbstractGitStorageBasePath)
+        gitlab_server_name = self.get_gitlab_server_name()
+        asset_routines = self.get_asset_routines_by_dirname(dirname)
+        asset_routines.load()
+        server_routines = GitLabServerRoutines(gitlab_server_name)
+        asset_server_routines = GitLabFQDNGitAssetRoutines(server_routines,asset_routines.working_asset,base_path.get_fqdn())
+        return asset_server_routines
+
 
     def create_new_empty_asset(self, dirname: str):
         """Creates a new empty asset with a new id at the given directory name.
@@ -558,7 +568,7 @@ class AssetsStaticSubDir(StaticSubDir[BT,DT], typing.Generic[BT,DT], abc.ABC):
             raise FileExistsError("Path already exists: " + submod_abspath)
         asset_id = NewAssetID()
         relpath = os.path.relpath(submod_abspath, base_path.get_path())
-        gitlab_server_routines = GitLabServerRoutines(base_path.get_gitlab_server_name())
+        gitlab_server_routines = GitLabServerRoutines(self.get_gitlab_server_name())
         groupname = gitlab_server_routines.group_name_from_fqdn(base_path.get_fqdn())
         url = gitlab_server_routines.remote_path_for_gitasset(groupname, asset_id)
         CreateEmptySubmodule(repo, relpath, asset_id, url)
@@ -575,7 +585,7 @@ class AssetsStaticSubDir(StaticSubDir[BT,DT], typing.Generic[BT,DT], abc.ABC):
         if os.path.exists(submod_abspath):
             raise FileExistsError("Path already exists: " + submod_abspath)
         relpath = os.path.relpath(submod_abspath, base_path.get_path())
-        gitlab_server_routines = GitLabServerRoutines(base_path.get_gitlab_server_name())
+        gitlab_server_routines = GitLabServerRoutines(self.get_gitlab_server_name())
         groupname = gitlab_server_routines.group_name_from_fqdn(base_path.get_fqdn())
         url = gitlab_server_routines.remote_path_for_gitasset(groupname, asset_id)
         AddSubmodule(repo, asset_id, relpath, url)
@@ -593,11 +603,32 @@ class AssetsStaticSubDir(StaticSubDir[BT,DT], typing.Generic[BT,DT], abc.ABC):
             raise FileNotFoundError("Path doesn't exist: " + submod_abspath)
         asset_id = NewAssetID()
         relpath = os.path.relpath(submod_abspath, base_path.get_path())
-        gitlab_server_routines = GitLabServerRoutines(base_path.get_gitlab_server_name())
+        gitlab_server_routines = GitLabServerRoutines(self.get_gitlab_server_name())
         groupname = gitlab_server_routines.group_name_from_fqdn(base_path.get_fqdn())
         url = gitlab_server_routines.remote_path_for_gitasset(groupname, asset_id)
         CreateSubmoduleFromSubDirectory(repo, relpath, asset_id, url=url)
         add_gitmodules_file(repo)
+
+    def get_gitlab_server_name(self) -> str:
+        """Gets the gitlab server name for this set of assets to pull from.
+        Default implementation gets it from this base path.  Override this to get it
+        another way."""
+        base_path = self.get_base_static_path()
+        assert isinstance(base_path,AbstractGitStorageBasePath)
+        gitlab_server_name = base_path.get_gitlab_server_name()
+        return gitlab_server_name
+
+
+    async def checkout_by_dirname_routine(self, dirname:str, feedback_ui:AbstractFeedbackUI):
+        "Checks out the asset from gitlab."
+        base_path = self.get_base_static_path()
+        assert isinstance(base_path,AbstractGitStorageBasePath)
+        base_repo_path = base_path.get_path()
+        base_repo = Repo(base_repo_path)
+        asset_server_routines = self.get_asset_gitlab_routines_by_dirname(dirname)
+        asset_id = asset_server_routines.working_asset.GetAsset().GetID()
+        await asset_server_routines.init_submodule_sub_routine(feedback_ui,asset_id,base_repo,"master")
+
 
 
 TABP = typing.TypeVar("TABP", bound=AbstractAssetBasePath)

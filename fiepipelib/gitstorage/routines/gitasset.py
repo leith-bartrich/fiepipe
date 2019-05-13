@@ -3,6 +3,7 @@ import os
 import os.path
 import shlex
 import typing
+import shutil
 
 import git
 
@@ -90,13 +91,29 @@ class GitAssetRoutines(GitRepoRoutines):
                 GitAssetRoutines(self._container_id, self._root_id, sub_asset.GetAsset().GetID()))
         return ret
 
-    async def deinit(self):
+    async def delete_lfs_object_cache(self, feedback_ui:AbstractFeedbackUI):
+        submod = self._working_asset.GetSubmodule()
+        repo = submod.module()
+        assert isinstance(repo,git.Repo)
+        module_dir = repo.git_dir
+        lfs_dir = os.path.join(module_dir,"lfs")
+        objects_dir = os.path.join(lfs_dir,"objects")
+        if not os.path.exists(objects_dir):
+            return
+        #TODO: catch errors and print them.
+        shutil.rmtree(objects_dir,True)
+
+    async def deinit(self, feedback_ui:AbstractFeedbackUI,force=False):
         """Un-checks out an asset that is currently checked out."""
         submod = self._working_asset.GetSubmodule()
         if submod.exists():
             repo = submod.repo
             assert isinstance(repo, git.Repo)
-            repo.git.submodule("deinit", submod.abspath)
+            if force:
+                deinit_output = repo.git.submodule("deinit","--force", submod.abspath)
+            else:
+                deinit_output = repo.git.submodule("deinit", submod.abspath)
+            await feedback_ui.output(deinit_output)
 
     async def deinit_branch(self):
         """Recursive de-init that de-inits children before parents."""

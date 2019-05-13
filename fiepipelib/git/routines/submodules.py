@@ -49,6 +49,7 @@ def Remove(repo, name):
     submod.remove(module=True, force=True, configuration=True)
 
 
+
 def CreateEmpty(repo, subpath, name, url: str = None):
     """Creates an empty submodule by creating a new temporary empty repository
     and then adding it as a submodule.  The temporary repo is then deleted.
@@ -222,20 +223,16 @@ def CreateFromSubDirectory(repo, subpath, name, forgedHistory=False, url: str = 
     return ret
 
 
-def Checkout(repo, submodule, recursive=False):
+def Checkout(repo: git.Repo, submodule:git.Submodule, recursive=False):
     """Runs an update appropriate for an initial checkout of this submodule.
     """
-    assert isinstance(repo, git.Repo)
-    assert isinstance(submodule, git.Submodule)
     submodule.update(recursive, True)
 
 
-def Update(repo, submodule, recursive=False):
+def Update(repo:git.Repo, submodule:git.Submodule, recursive=False):
     """Runs an update appropriate for updating the checkout to the
     latest available revision.
     """
-    assert isinstance(repo, git.Repo)
-    assert isinstance(submodule, git.Submodule)
     submodule.update(recursive, True, True)
 
 
@@ -243,7 +240,7 @@ def CanCreateSubmodule(repo, subpath, must_be_empty=False):
     """Returns a tupple of (repo,subpath) for the submodule repository for which
     the given subpath can be created.  This function walks recursively into
     submodules, shortening the subpath as neccesary.
-    And if the submodule cannot be created, it returns a tupple of (None,None).
+    And if the submodule cannot be created, it returns a tuple of (None,None).
     """
     assert isinstance(repo, git.Repo)
     # by default, if we don't find otherwise, you can create that submodule in this repository.

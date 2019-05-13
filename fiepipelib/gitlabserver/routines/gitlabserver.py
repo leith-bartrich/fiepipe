@@ -9,6 +9,7 @@ import git
 
 from fiepipelib.git.routines.remote import create_update_remote, get_commits_behind, get_commits_ahead, exists
 from fiepipelib.git.routines.repo import RepoExists, DeleteLocalRepo, is_in_conflict
+from fiepipelib.git.routines.submodules import SetURL,GetURL,ChangeURL
 from fiepipelib.gitlabserver.data.gitlab_server import GitLabServer, GitLabServerManager
 from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedInteractiveRoutines
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
@@ -39,7 +40,11 @@ class GitLabServerRoutines(object):
         return GitLabServerManager(self.get_user_routines())
 
     def get_server(self) -> GitLabServer:
-        return self.get_manager().get_by_name(self.get_server_name())[0]
+        server_name = self.get_server_name()
+        servers = self.get_manager().get_by_name(server_name)
+        if len(servers) == 0:
+            raise KeyError("No such gitlab server: " + server_name)
+        return servers[0]
 
     def local_path_for_type_registry(self, server_name: str, group_name: str, type_name: str) -> str:
         pipeconfigdir = self.get_user_routines().get_pipe_configuration_dir()
@@ -102,6 +107,30 @@ class GitLabGitStorageRoutines(abc.ABC):
         repo = git.Repo(local_repo_path)
         return is_in_conflict(repo)
 
+    async def init_submodule_sub_routine(self, feedback_ui:AbstractFeedbackUI, name:str, parent_repo:git.Repo, branch:str ) -> bool:
+        server = self.get_server_routines().get_server()
+        local_repo_path = self.get_local_repo_path()
+        remote_url = self.get_remote_url()
+
+        await feedback_ui.output("Initing submodule: " + local_repo_path + " from: " + remote_url)
+        submod_init_output = parent_repo.git.submodule("init",local_repo_path)
+        await feedback_ui.output(submod_init_output)
+        await feedback_ui.output("Updating submodule: " + local_repo_path + " from: " + remote_url)
+        ChangeURL(parent_repo,name,remote_url,True)
+        submod_update_output = parent_repo.git.submodule("update",local_repo_path)
+        await feedback_ui.output(submod_update_output)
+        repo = git.Repo(local_repo_path)
+        remote_origin = repo.remote("origin")
+        remote_origin.set_url(remote_url)
+        await feedback_ui.output("Fetching LFS objects: " + local_repo_path + " from: " + remote_url)
+        lfs_fetch_output = repo.git.lfs("fetch", server.get_name(), branch)
+        await feedback_ui.output(lfs_fetch_output)
+        await feedback_ui.output("Checking out master branch to latest: " + local_repo_path + " from: " + remote_url)
+        checkout_output = repo.git.checkout("-f", branch)
+        await feedback_ui.output(checkout_output)
+
+
+
 
     async def pull_sub_routine(self, feedback_ui: AbstractFeedbackUI, branch: str) -> bool:
 
@@ -156,6 +185,30 @@ class GitLabGitStorageRoutines(abc.ABC):
         await feedback_ui.output("Pushing " + branch + ": " + local_path + " -> " + remote_url)
         remote.push(branch)
         return True
+
+    async def push_lfs_objects_subroutine(self, feedback_ui:AbstractFeedbackUI, branch: str):
+        """Push lfs objects to the remote.
+        lfs is smart about only pushing objects that need to be pushed.
+        Failure will throw.  Therefore, a succesful run of this subroutine guarontees
+        lfs objects exist."""
+        server = self.get_server_routines().get_server()
+        remote_url = self.get_remote_url()
+        local_path = self.get_local_repo_path()
+
+        await feedback_ui.output("Pushing LFS objects: " + local_path + " to: " + remote_url)
+
+        if not RepoExists(local_path):
+            await feedback_ui.error("No local worktree.  You might need to create or pull it first.")
+            return False
+
+        repo = git.Repo(local_path)
+
+        remote = create_update_remote(repo, server.get_name(), remote_url)
+        assert isinstance(remote, git.Remote)
+        push_output = repo.git.lfs("push",server.get_name(),branch)
+        await feedback_ui.output(push_output)
+        await feedback_ui.output("Done pushing LFS objects.")
+
 
     async def push_routine(self, feedback_ui: AbstractFeedbackUI):
         """Meant to be called direclty by the user.  Dosen't throw on failure."""
@@ -260,101 +313,264 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
         repo = git.Repo(local_path)
         return exists(repo,server.get_name())
 
-    async def push_all_routine(self, group_name: str):
-        """
-        Pushes all the items from the manager to gitlab.
-        :param group_name: The gitlab group name to push to.
+    async def fetch_master_subroutine(self, group_name: str):
+        """Fetches any remote changes but doesn't do anything with them.
         """
         server = self.get_server_routines().get_server()
+        local_path = self.get_server_routines().local_path_for_type_registry(server.get_name(), group_name,
+                                                                             self.get_typename())
         server_url = self.get_server_routines().remote_path_for_entity_registry(group_name=group_name,
                                                                                 type_name=self.get_typename())
+        if not RepoExists(local_path):
+            raise RuntimeError("No local worktree.")
+
+        repo = git.Repo(local_path)
+
+        master_branch = None
+
+        # check for branches and create local if needed.
+        for branch in repo.heads:
+            assert isinstance(branch, git.Head)
+            if branch.name == "master":
+                master_branch = branch
+
+        if master_branch is None:
+            raise RuntimeError("There is no master branch.")
+
+        remote = create_update_remote(repo, server.get_name(), server_url)
+        remote.fetch("master")
+
+    async def commit_to_local_subroutine(self, feedback_ui:AbstractFeedbackUI, group_name:str):
+        """Ensures the head of the local branch matches the database exactly.
+        Which often involves a commit."""
+        server = self.get_server_routines().get_server()
         local_path = self.get_server_routines().local_path_for_type_registry(server.get_name(), group_name,
                                                                              self.get_typename())
         manager_routines = self.get_local_manager_routines()
-
         if not RepoExists(local_path):
-            await self.get_feedback_ui().error(
-                "No local worktree.  You can create an empty one with init_local or use a pull command to get an existing one.")
+            raise RuntimeError("No local worktree.")
+
+        repo = git.Repo(local_path)
+
+        local_branch = None
+        master_branch = None
+
+        #check for branches and create local if needed.
+        for branch in repo.heads:
+            assert  isinstance(branch, git.Head)
+            if branch.name == "local":
+                local_branch = branch
+            if branch.name == "master":
+                master_branch = branch
+
+        if master_branch is None:
+            raise RuntimeError("There is no master branch.")
+
+        if local_branch is None:
+            await feedback_ui.output("Creating local branch from master.")
+            branch_output = repo.git.branch("local","master")
+            await feedback_ui.output(branch_output)
+            await feedback_ui.output("Branch created.")
+            local_branch = git.Head(repo,"local")
+
+        #check out local
+        local_branch.checkout(force=True)
+
+        #we clear the dir of items
+        items = os.listdir(local_path)
+        for item in items:
+            if item.endswith(".json"):
+                os.remove(os.path.join(local_path,item))
+
+        #then we export from the db
+        await manager_routines.ExportAllRoutine(local_path)
+
+        #do an add
+        add_output = repo.git.add("--all")
+        await feedback_ui.output(add_output)
+
+        #do a commit
+        commit_output = repo.git.commit("-a","-m","commiting db to local.")
+        await feedback_ui.output(commit_output)
+
+    async def merge_local_to_master_subroutine(self, feedback_ui:AbstractFeedbackUI, group_name:str):
+        server = self.get_server_routines().get_server()
+        local_path = self.get_server_routines().local_path_for_type_registry(server.get_name(), group_name,
+                                                                             self.get_typename())
+        if not RepoExists(local_path):
+            #nothing to merge.  So, done.
             return
 
         repo = git.Repo(local_path)
 
-        if repo.is_dirty(untracked_files=True):
-            await self.get_feedback_ui().error("Worktree is dirty.  Aborting.")
+        local_branch = None
+        master_branch = None
+
+        #check for branches.
+        for branch in repo.heads:
+            assert  isinstance(branch, git.Head)
+            if branch.name == "local":
+                local_branch = branch
+            if branch.name == "master":
+                master_branch = branch
+
+        if master_branch is None:
+            raise RuntimeError("There is no master branch.")
+
+        if local_branch is None:
+            #nothing to merge.  So, done.
             return
 
-        await manager_routines.ExportAllRoutine(local_path)
+        #checkout master
+        master_branch.checkout(force=True)
 
-        for untracked_file in repo.untracked_files:
-            if untracked_file.endswith(".json"):
-                repo.index.add([untracked_file])
-        if repo.is_dirty(untracked_files=True):
-            repo.index.commit("exporting all " + self.get_typename() + "(s)")
+        if repo.is_dirty():
+            raise RuntimeError("Checkout of master is dirty.  Won't continue.")
 
-        # we push to the server even if there was no commit because this is a "push" command.
-        remote = create_update_remote(repo, server.get_name(), server_url)
-        remote.push("master")
-
-    async def pull_all_routine(self, group_name: str):
-        server = self.get_server_routines().get_server()
-        server_url = self.get_server_routines().remote_path_for_entity_registry(group_name=group_name,
-                                                                                type_name=self.get_typename())
-        local_path = self.get_server_routines().local_path_for_type_registry(server.get_name(), group_name,
-
-                                                                             self.get_typename())
-        if RepoExists(local_path):
-            repo = git.Repo(local_path)
-            remote = create_update_remote(repo, server.get_name(), server_url)
-            await self.get_feedback_ui().output("Pulling from: " + server_url)
-            remote.pull("master")
-            # TODO: check for conflicsts?  What happens if conflicted?
+        #we merge local into master.
+        repo.index.merge_tree(local_branch)
+        if is_in_conflict(repo):
+            raise RuntimeError("Conflicts found after merge.  Manual resolution required.  Won't continue.")
         else:
-            await self.get_feedback_ui().output("Cloning from: " + server_url)
-            git.Repo.clone_from(server_url, local_path)
+            repo.index.commit("Merged local changes to master.")
+
+        #if we got here, then we succesfully merged from local to master.  We merge back, to make future merges easier.
+        local_branch.checkout(force=True)
+
+        if repo.is_dirty():
+            raise RuntimeError("Checkout of local is dirty.  Won't continue.")
+
+        repo.index.merge_tree(master_branch)
+        if is_in_conflict(repo):
+            raise RuntimeError("Conflicts found after merging master back to local.  Manual resolution required.  Won't continue.")
+        else:
+            repo.index.commit("Merged master back to local.")
+
+        #what we've done is as follows:
+        #local branch consists of local versions, stacked on a recent master commit.
+        #the merge to master, will hopefully
+
+
+
+
+
+    async def import_from_master_subroutine(self, feedback_ui:AbstractFeedbackUI, group_name:str):
+        """This overwrites the db with the master branch.  Therefore, we delete and replace local with master as well.
+        This helps track and merge changes.
+        """
+        server = self.get_server_routines().get_server()
+        local_path = self.get_server_routines().local_path_for_type_registry(server.get_name(), group_name,
+                                                                             self.get_typename())
+        if not RepoExists(local_path):
+            raise RuntimeError("No local worktree.")
+
+        repo = git.Repo(local_path)
+
+        master_branch = None
+
+        #check for branches and create local if needed.
+        for branch in repo.heads:
+            assert  isinstance(branch, git.Head)
+            if branch.name == "master":
+                master_branch = branch
+
+        if master_branch is None:
+            raise RuntimeError("There is no master branch.")
+
+        #check out master
+        master_branch.checkout(force=True)
+
+        if repo.is_dirty():
+            raise RuntimeError("Master branch is dirty after checkout.  Won't import dirty data to db.")
+
 
         manager_routines = self.get_local_manager_routines()
+
+        #clear out the manager before importing
+        for item in manager_routines.GetAllItems():
+            name = manager_routines.ItemToName(item)
+            await manager_routines.DeleteRoutine(name)
 
         await manager_routines.ImportAllRoutine(local_path)
 
-    async def push_routine(self, group_name: str, itemNames: typing.List[str]):
-        """
-        Pushes named items from the manager to the GitLab server.
-        :param group_name: The name of the gitlab group to push to.
-        :param itemNames: A list of item names.
-        """
+        #if we got here, we succesfully imported from master.
+        #now we kill the local branch completely and create it from master
+        for branch in repo.heads:
+            assert  isinstance(branch, git.Head)
+            if branch.name == "local":
+                git.Head.delete(repo,"local")
+                branch_output = repo.git.branch("local", "master")
+                await feedback_ui.output(branch_output)
+
+    async def push_commits_subroutine(self, feedback_ui, group_name):
         server = self.get_server_routines().get_server()
         server_url = self.get_server_routines().remote_path_for_entity_registry(group_name=group_name,
                                                                                 type_name=self.get_typename())
         local_path = self.get_server_routines().local_path_for_type_registry(server.get_name(), group_name,
                                                                              self.get_typename())
-        manager_routines = self.get_local_manager_routines()
-
-        if not RepoExists(local_path):
-            await self.get_feedback_ui().error(
-                "No local worktree.  You can create an empty one with init_local or use a pull command to get an existing one.")
-            return
 
         repo = git.Repo(local_path)
 
-        if repo.is_dirty(untracked_files=True):
-            await self.get_feedback_ui().error("Worktree is dirty.  Aborting.")
-            return
-
-        for itemName in itemNames:
-            item_path = os.path.join(local_path, itemName + ".json")
-            await manager_routines.ExportRoutine(itemName, item_path)
-
-        for untracked_file in repo.untracked_files:
-            if untracked_file.endswith(".json"):
-                repo.index.add([untracked_file])
-
-        if repo.is_dirty(untracked_files=True):
-            repo.git.commit('-a', '-m', '"exporting ' + ','.join(itemNames) + " " + self.get_typename() + '(s)"')
-
-        # we push even if there is no commit.  because it's a 'push' command.
-
+        # we push to the server even if there was no commit because this is a "push" command.  Server could be behind for other reasons.
         remote = create_update_remote(repo, server.get_name(), server_url)
+        #this could fail if you don't have permission to write container changes.  And that's okay because securityis handled by gitlab after all.
         remote.push("master")
+
+
+    async def safe_merge_update_routine(self, feedback_ui:AbstractFeedbackUI, group_name:str):
+        """
+        This routine does a 'safe' merge of local changes, and update of remote changes.
+        """
+
+        # sanity check.  What if the local db is from a different server (location)?
+        # answers:
+        #   if the containers asset is the same, repo, it doesn't matter.
+        #   if the containers asset is a different repo, then a merge local to master should fail.
+
+
+        # we commit to local.
+        await self.commit_to_local_subroutine(feedback_ui,group_name)
+        # If there were no changes, then there is no commit made.
+        # Therefore, we either have (as head):
+        #   an existing master commit
+        #   a series of local commits on top of a master commit
+
+
+        #we merge local to master
+        await self.merge_local_to_master_subroutine(feedback_ui, group_name)
+        #if there are no local commits, this simply succeeds without doing anything.
+        #also, local is now updated master's newest head commit, guaronteed.
+
+        #to this point, we have not done anything with remotes
+
+        #we pull in further changes to master from remote
+        await self.fetch_master_subroutine(group_name)
+
+
+        #we export a newly updated and merged master to the db
+        #this blows away the local branch and re-creates it from master
+        await self.import_from_master_subroutine(feedback_ui,group_name)
+
+        #last, we push any commits that we can.
+        await self.push_commits_subroutine(feedback_ui, group_name)
+
+    async def checkout_routine(self, feedback_ui:AbstractFeedbackUI, group_name:str):
+        """Does a fresh checkout of the master branch from remote.  Blows away existing repo and db items."""
+        server = self.get_server_routines().get_server()
+        server_url = self.get_server_routines().remote_path_for_entity_registry(group_name=group_name,
+                                                                                type_name=self.get_typename())
+        local_path = self.get_server_routines().local_path_for_type_registry(server.get_name(), group_name,
+                                                                             self.get_typename())
+        if RepoExists(local_path):
+            #blow it away
+            DeleteLocalRepo(local_path)
+
+        await self.get_feedback_ui().output("Cloning from: " + server_url)
+        git.Repo.clone_from(server_url, local_path)
+        await self.import_from_master_subroutine(feedback_ui,group_name)
+
+
+
 
     def is_conflicted(self, group_name: str) -> bool:
         server = self.get_server_routines().get_server()
@@ -364,26 +580,6 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
             repo = git.Repo(local_path)
             return is_in_conflict(repo)
 
-    async def pull_routine(self, group_name: str, itemNames: typing.List[str]):
-        server = self.get_server_routines().get_server()
-        server_url = self.get_server_routines().remote_path_for_entity_registry(group_name=group_name,
-                                                                                type_name=self.get_typename())
-        local_path = self.get_server_routines().local_path_for_type_registry(server.get_name(), group_name,
-                                                                             self.get_typename())
-        if RepoExists(local_path):
-            repo = git.Repo(local_path)
-            if repo.is_dirty(untracked_files=True):
-                await self.get_feedback_ui().error("Worktree is dirty.  Aborting.")
-                return
-            remote = create_update_remote(repo, server.get_name(), server_url)
-            remote.pull_routine("master")
-        else:
-            git.Repo.clone_from(server_url, local_path)
-
-        manager_routines = self.get_local_manager_routines()
-
-        for itemName in itemNames:
-            await manager_routines.ImportRoutine(os.path.join(local_path, itemName + ".json"))
 
     async def init_local(self, group_name: str):
         server = self.get_server_routines().get_server()
@@ -417,6 +613,7 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
         else:
             DeleteLocalRepo(local_path)
             return True
+
 
 
 class GitLabManagedTypeInteractiveRoutines(GitLabManagedTypeRoutines[T]):

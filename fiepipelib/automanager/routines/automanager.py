@@ -191,6 +191,9 @@ class AutoManagerRoutines(object):
             method = entrypoint.load()
             await method(feedback_ui, fqdn)
 
+        # we get teh legal entity config after teh hook, becasue the pre_automanage hook might purposely alter
+        # the config.  e.g. set a new gitlab server...
+
         try:
             legal_entity_config = self.get_legal_entitiy_config(fqdn)
         except KeyError as err:
@@ -223,34 +226,24 @@ class AutoManagerRoutines(object):
             return
 
         # Update Containers
+
         gitlab_server_routines = GitLabServerRoutines(gitlab_server)
         groupname = gitlab_server_routines.group_name_from_fqdn(legal_entity_config.get_fqdn())
 
-        await feedback_ui.output("Pulling containers from GitLab FQDN group: " + groupname)
+        await feedback_ui.output("Updating and merging containers from GitLab FQDN group: " + groupname)
 
-        # We always pull first.  A conflict should throw here.
         container_management_routines = FQDNContainerManagementRoutines(feedback_ui, legal_entity_config.get_fqdn())
         gitlab_container_routines = GitlabManagedContainerRoutines(feedback_ui, container_management_routines,
                                                                    gitlab_server_routines)
 
         try:
-            await gitlab_container_routines.pull_all_routine(groupname)
-        except git.GitCommandError as err:
-            await feedback_ui.error("There was an error pulling containers from the gitlab server:")
-            await feedback_ui.error(str(err.command))
-            await feedback_ui.error(str(err.stderr))
-            # since it is possible that a shared container effects the nature of the gitlab (net service) content, we fail here.
-            # in theory, we could set a flag that means, 'local managment only from here on' but for now, we just move on.
+            await gitlab_container_routines.safe_merge_update_routine(feedback_ui,groupname)
+        except:
+            await feedback_ui.error("There was an error merging and updating containers from the gitlab server.")
             await feedback_ui.error("This error is fatal to auto-managing the legal entity.  Moving on.")
             return
 
-        if gitlab_container_routines.is_conflicted(groupname):
-            await feedback_ui.warn("Containers are conflicted.  You probably need to fix this.  Moving on.")
-            return
-        await feedback_ui.output("Done pulling containers.")
-        # If we have any local changes, we'll end up pushing them later.
-
-        # Dirty is probably okay here.  We don't need to check for that.
+        await feedback_ui.output("Done updating and merging containers.")
 
         # next we go through the containers.
         user = get_local_user_routines()
@@ -318,19 +311,8 @@ class AutoManagerRoutines(object):
             await feedback_ui.error("GitLab Server not found: " + gitlab_server)
             return
 
-        # first, we attempt to push any changes to the shared container to gitlab.
-        # note we're pushing to the entity gitlab here.
-        entity_gitlab_server_routines = GitLabServerRoutines(legal_entity_config.get_gitlab_server())
-        groupname = entity_gitlab_server_routines.group_name_from_fqdn(legal_entity_config.get_fqdn())
-        container_management_routines = FQDNContainerManagementRoutines(feedback_ui, legal_entity_config.get_fqdn())
-        gitlab_container_routines = GitlabManagedContainerRoutines(feedback_ui, container_management_routines,
-                                                                   entity_gitlab_server_routines)
-        await feedback_ui.output("Pushing any local container changes (if they exist) to legal entity's GitLab.")
-        # TODO: Gracefully inform upon failure due to permissions?
-        await gitlab_container_routines.push_routine(groupname, [container.GetShortName()])
-        # a failed push isn't a problem.  we keep going.
 
-        # moving on to root level auto management
+        # root level auto management
 
         shared_roots_component = SharedGitRootsComponent(container)
         shared_roots_component.Load()
