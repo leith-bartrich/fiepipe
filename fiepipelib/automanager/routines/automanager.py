@@ -1,9 +1,10 @@
 import abc
 import asyncio
 import typing
-
+import traceback
 import git
 import pkg_resources
+import sys
 
 from fiepipelib.automanager.data.localconfig import LegalEntityConfig, \
     LegalEntityConfigManager, LegalEntityMode
@@ -236,19 +237,14 @@ class AutoManagerRoutines(object):
         gitlab_container_routines = GitlabManagedContainerRoutines(feedback_ui, container_management_routines,
                                                                    gitlab_server_routines)
 
-        try:
-            await gitlab_container_routines.safe_merge_update_routine(feedback_ui,groupname)
-        except:
-            await feedback_ui.error("There was an error merging and updating containers from the gitlab server.")
-            await feedback_ui.error("This error is fatal to auto-managing the legal entity.  Moving on.")
-            return
+        await gitlab_container_routines.safe_merge_update_routine(feedback_ui,groupname)
 
         await feedback_ui.output("Done updating and merging containers.")
 
         # next we go through the containers.
         user = get_local_user_routines()
         container_man = LocalContainerManager(user)
-        local_container_config_man = LocalContainerConfigurationManager(user)
+        #local_container_config_man = LocalContainerConfigurationManager(user)
 
         all_containers = container_man.GetByFQDN(legal_entity_config.get_fqdn())
         for container in all_containers:
@@ -279,7 +275,7 @@ class AutoManagerRoutines(object):
 
         container = containers[0]
 
-        conatainer_local_configs = local_container_config_man.GetByContainer(container)
+        conatainer_local_configs = local_container_config_man.GetByID(container.GetID())
         if len(conatainer_local_configs) != 1:
             # we silently move on
             return

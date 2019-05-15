@@ -34,7 +34,12 @@ class AbstractContainerManagementRoutines(AbstractLocalManagedRoutines[Container
     @abc.abstractmethod
     async def DeleteRoutine(self, name: str):
         """Override and call super.  Then do the deletion."""
-        await self.delete_local_configuration_routine(name)
+        #okay.  problem was being cased by this line.
+        #the problem is, that we delete items as part of updating
+        #from gitlab.  And in that case, we don't want to wipe out the local config.
+        #so while it may seem like we should conveniently do this, probably, we should not.
+
+        #await self.delete_local_configuration_routine(name)
 
     async def delete_local_configuration_routine(self, name: str):
         """Deletes the local configuration for a container.

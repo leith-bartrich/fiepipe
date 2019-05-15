@@ -390,8 +390,9 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
         await feedback_ui.output(add_output)
 
         #do a commit
-        commit_output = repo.git.commit("-a","-m","commiting db to local.")
-        await feedback_ui.output(commit_output)
+        if repo.is_dirty():
+            commit_output = repo.git.commit("-a","-m","\"commiting db to local.\"")
+            await feedback_ui.output(commit_output)
 
     async def merge_local_to_master_subroutine(self, feedback_ui:AbstractFeedbackUI, group_name:str):
         server = self.get_server_routines().get_server()
@@ -428,10 +429,14 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
             raise RuntimeError("Checkout of master is dirty.  Won't continue.")
 
         #we merge local into master.
-        repo.index.merge_tree(local_branch)
+        await feedback_ui.output("Merging local into master.")
+        merge_output = repo.git.merge("--no-edit","local")
+        await feedback_ui.output(merge_output)
+
+        #repo.index.merge_tree(local_branch)
         if is_in_conflict(repo):
             raise RuntimeError("Conflicts found after merge.  Manual resolution required.  Won't continue.")
-        else:
+        if repo.is_dirty():
             repo.index.commit("Merged local changes to master.")
 
         #if we got here, then we succesfully merged from local to master.  We merge back, to make future merges easier.
@@ -440,10 +445,14 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
         if repo.is_dirty():
             raise RuntimeError("Checkout of local is dirty.  Won't continue.")
 
-        repo.index.merge_tree(master_branch)
+        await feedback_ui.output("Merging master back into local.")
+        merge_output = repo.git.merge("--no-edit","master")
+        await feedback_ui.output(merge_output)
+
+        #repo.index.merge_tree(master_branch)
         if is_in_conflict(repo):
             raise RuntimeError("Conflicts found after merging master back to local.  Manual resolution required.  Won't continue.")
-        else:
+        if repo.is_dirty():
             repo.index.commit("Merged master back to local.")
 
         #what we've done is as follows:
@@ -498,7 +507,7 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
         for branch in repo.heads:
             assert  isinstance(branch, git.Head)
             if branch.name == "local":
-                git.Head.delete(repo,"local")
+                git.Head.delete(repo,"local",force=True)
                 branch_output = repo.git.branch("local", "master")
                 await feedback_ui.output(branch_output)
 
