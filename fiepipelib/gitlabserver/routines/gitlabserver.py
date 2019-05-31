@@ -4,6 +4,7 @@ import os.path
 import os.path
 import pathlib
 import typing
+import gitlab
 
 import git
 
@@ -77,6 +78,27 @@ class GitLabServerRoutines(object):
     def group_name_from_fqdn(self, fqdn: str):
         return "fiepipe." + fqdn
 
+    def provision_fqdn(self, fqdn: str):
+        server = self.get_server()
+        groupname = self.group_name_from_fqdn(fqdn)
+        gitlab_server = gitlab.Gitlab(url="https://" + server.get_hostname(),private_token=server.get_private_token())
+
+        #check for existitng group
+
+        fqdn_group = None
+        for group in gitlab_server.groups.list():
+            if group.name == groupname:
+                fqdn_group = group
+                break
+
+        #create if neccesary
+        if fqdn_group == None:
+            fqdn_group = {'name':groupname,'path':groupname,'visibility':'private','lfs_enabled':True}
+            gitlab_server.groups.create(fqdn_group)
+
+
+
+
 
 T = typing.TypeVar("T", bound=AbstractLocalManagedInteractiveRoutines)
 
@@ -113,17 +135,20 @@ class GitLabGitStorageRoutines(abc.ABC):
         remote_url = self.get_remote_url()
 
         await feedback_ui.output("Initing submodule: " + local_repo_path + " from: " + remote_url)
-        submod_init_output = parent_repo.git.submodule("init",local_repo_path)
+        git_cmd = git.Git(local_repo_path)
+        submod_init_output = git_cmd.submodule("init",".")
+        #submod_init_output = parent_repo.git.submodule("init",local_repo_path)
         await feedback_ui.output(submod_init_output)
         await feedback_ui.output("Updating submodule: " + local_repo_path + " from: " + remote_url)
         ChangeURL(parent_repo,name,remote_url,True)
-        submod_update_output = parent_repo.git.submodule("update",local_repo_path)
+        submod_update_output = git_cmd.submodule("update",".")
+        #submod_update_output = parent_repo.git.submodule("update",local_repo_path)
         await feedback_ui.output(submod_update_output)
         repo = git.Repo(local_repo_path)
         remote_origin = repo.remote("origin")
         remote_origin.set_url(remote_url)
         await feedback_ui.output("Fetching LFS objects: " + local_repo_path + " from: " + remote_url)
-        lfs_fetch_output = repo.git.lfs("fetch", server.get_name(), branch)
+        lfs_fetch_output = repo.git.lfs("fetch", remote_url, branch)
         await feedback_ui.output(lfs_fetch_output)
         await feedback_ui.output("Checking out master branch to latest: " + local_repo_path + " from: " + remote_url)
         checkout_output = repo.git.checkout("-f", branch)

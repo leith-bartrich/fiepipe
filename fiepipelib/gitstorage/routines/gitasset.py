@@ -43,9 +43,10 @@ class GitAssetRoutines(GitRepoRoutines):
             if submod.name == asset_id:
                 return submod
             else:
-                found = self.get_submodule_recursive(submod.module(), asset_id)
-                if found is not None:
-                    return found
+                if submod.module_exists():
+                    found = self.get_submodule_recursive(submod.module(), asset_id)
+                    if found is not None:
+                        return found
         return None
 
     @property

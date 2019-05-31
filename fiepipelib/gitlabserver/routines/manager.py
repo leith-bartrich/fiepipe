@@ -3,6 +3,7 @@ import typing
 from fiepipelib.gitlabserver.data.gitlab_server import GitLabServer, GitLabServerManager
 from fiepipelib.gitlabserver.routines.ui.gitlab_hostname_input_ui import GitLabHostnameInputDefaultUI
 from fiepipelib.gitlabserver.routines.ui.gitlab_username_input_ui import GitLabUsernameInputDefaultUI
+from fiepipelib.gitlabserver.routines.ui.gitlab_private_token_input_ui import GitLabPrivateTokenInputDefaultUI
 from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedInteractiveRoutines
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
 from fiepipelib.localuser.routines.localuser import LocalUserRoutines
@@ -14,6 +15,7 @@ class GitLabServerManagerInteractiveRoutines(AbstractLocalManagedInteractiveRout
 
     _hostname_input_default_ui: GitLabHostnameInputDefaultUI = None
     _username_input_default_ui: GitLabUsernameInputDefaultUI = None
+    _private_token_input_default_ui: GitLabPrivateTokenInputDefaultUI = None
 
     def get_hostname_input_default_ui(self):
         return self._hostname_input_default_ui
@@ -22,9 +24,10 @@ class GitLabServerManagerInteractiveRoutines(AbstractLocalManagedInteractiveRout
         return self._username_input_default_ui
 
     def __init__(self, feedback_ui: AbstractFeedbackUI, hostname_input_default_ui: GitLabHostnameInputDefaultUI,
-                 username_input_default_ui: GitLabUsernameInputDefaultUI):
+                 username_input_default_ui: GitLabUsernameInputDefaultUI, private_token_input_default_ui):
         self._hostname_input_default_ui = hostname_input_default_ui
         self._username_input_default_ui = username_input_default_ui
+        self._private_token_input_default_ui = private_token_input_default_ui
         super().__init__(feedback_ui)
 
     def GetManager(self) -> GitLabServerManager:
@@ -46,9 +49,10 @@ class GitLabServerManagerInteractiveRoutines(AbstractLocalManagedInteractiveRout
         try:
             item = self.GetItemByName(name)
         except LookupError:
-            item = self.GetManager().from_parameters(name, "hostname", "username")
+            item = self.GetManager().from_parameters(name, "hostname", "username","")
         hostname = await self.get_hostname_input_default_ui().execute("GitLab hostname", item.get_hostname())
         username = await self.get_username_input_default_ui().execute("GitLab username", item.get_username())
-        new_server = self.GetManager().from_parameters(name, hostname, username)
+        private_token = await self._private_token_input_default_ui.execute("GitLab private token", item.get_private_token())
+        new_server = self.GetManager().from_parameters(name, hostname, username, private_token)
         self.GetManager().Set([new_server])
         return

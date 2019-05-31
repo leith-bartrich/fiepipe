@@ -17,6 +17,7 @@ class GitLabServer(object):
     _name: str = None
     _hostname: str = None
     _username: str = None
+    _private_token: str = None
 
     def get_hostname(self) -> str:
         """Full GIT url for the gitlab server"""
@@ -28,6 +29,9 @@ class GitLabServer(object):
 
     def get_username(self) -> str:
         return self._username
+
+    def get_private_token(self) -> str:
+        return self._private_token
 
     def get_ssh_url(self, group: str, name: str):
         if not name.endswith(".git"):
@@ -59,6 +63,7 @@ class GitLabServerManager(AbstractUserLocalTypeManager[GitLabServer]):
         ret['name'] = item.get_name()
         ret['hostname'] = item.get_hostname()
         ret['username'] = item.get_username()
+        ret['private_token'] = item.get_private_token()
         return ret
 
     def FromJSONData(self, data: dict) -> GitLabServer:
@@ -66,13 +71,15 @@ class GitLabServerManager(AbstractUserLocalTypeManager[GitLabServer]):
         ret._name = data['name']
         ret._hostname = data['hostname']
         ret._username = data['username']
+        ret._private_token = data.get('private_token',"")
         return ret
 
-    def from_parameters(self, name: str, hostname: str, username: str) -> GitLabServer:
+    def from_parameters(self, name: str, hostname: str, username: str, private_token: str) -> GitLabServer:
         ret = GitLabServer()
         ret._name = name
         ret._hostname = hostname
         ret._username = username
+        ret._private_token = private_token
         return ret
 
     def get_by_name(self, name: str):

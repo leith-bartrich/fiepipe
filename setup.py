@@ -16,7 +16,7 @@ setup(
     py_modules=["fiepipe", "fiepipestateserver"],
     packages = find_packages(),
     
-install_requires=["rpyc","plumbum","paramiko","cryptography","GitPython","bcrypt","pycryptodome","cookiecutter","watchdog>=0.9.0"],
+install_requires=["rpyc","plumbum","paramiko","cryptography","GitPython","python-gitlab","bcrypt","pycryptodome","cookiecutter","watchdog>=0.9.0"],
     entry_points={
         'fiepipe.plugin.gitstorage.lfs.patterns' : [
             'fiepipe = fiepipelib.gitstorage.routines.lfs_tracked_patterns:get_patterns',
