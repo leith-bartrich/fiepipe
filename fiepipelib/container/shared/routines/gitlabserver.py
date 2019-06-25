@@ -27,5 +27,5 @@ class GitlabManagedContainerInteractiveRoutines(GitlabManagedContainerRoutines, 
     def __init__(self, feedback_ui: AbstractFeedbackUI,
                  local_manager_routines: AbstractContainerManagementInteractiveRoutines,
                  server_routines: GitLabServerRoutines):
-        GitlabManagedContainerInteractiveRoutines.__init__(self, feedback_ui, local_manager_routines, server_routines)
+        GitlabManagedContainerRoutines.__init__(self, feedback_ui, local_manager_routines, server_routines)
         GitLabManagedTypeInteractiveRoutines.__init__(self, feedback_ui, server_routines)

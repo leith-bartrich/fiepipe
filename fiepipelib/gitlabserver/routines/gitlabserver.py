@@ -14,7 +14,7 @@ from fiepipelib.git.routines.submodules import SetURL,GetURL,ChangeURL
 from fiepipelib.gitlabserver.data.gitlab_server import GitLabServer, GitLabServerManager
 from fiepipelib.locallymanagedtypes.routines.localmanaged import AbstractLocalManagedInteractiveRoutines
 from fiepipelib.localplatform.routines.localplatform import get_local_platform_routines
-from fiepipelib.localuser.routines.localuser import LocalUserRoutines
+from fiepipelib.localuser.routines.localuser import LocalUserRoutines, get_local_user_routines
 from fieui.FeedbackUI import AbstractFeedbackUI
 from fieui.ModalTrueFalseDefaultQuestionUI import AbstractModalTrueFalseDefaultQuestionUI
 
@@ -34,11 +34,8 @@ class GitLabServerRoutines(object):
     def get_server_name(self) -> str:
         return self._server_name
 
-    def get_user_routines(self) -> LocalUserRoutines:
-        return LocalUserRoutines(get_local_platform_routines())
-
     def get_manager(self) -> GitLabServerManager:
-        return GitLabServerManager(self.get_user_routines())
+        return GitLabServerManager(get_local_user_routines())
 
     def get_server(self) -> GitLabServer:
         server_name = self.get_server_name()
@@ -48,7 +45,7 @@ class GitLabServerRoutines(object):
         return servers[0]
 
     def local_path_for_type_registry(self, server_name: str, group_name: str, type_name: str) -> str:
-        pipeconfigdir = self.get_user_routines().get_pipe_configuration_dir()
+        pipeconfigdir = get_local_user_routines().get_pipe_configuration_dir()
         ret = os.path.join(pipeconfigdir, "gitlabserver", server_name, group_name, type_name + ".git")
         pth = pathlib.Path(ret)
         if not pth.exists():
@@ -396,7 +393,13 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
             branch_output = repo.git.branch("local","master")
             await feedback_ui.output(branch_output)
             await feedback_ui.output("Branch created.")
-            local_branch = git.Head(repo,"local")
+            for branch in repo.heads:
+                assert isinstance(branch, git.Head)
+                if branch.name == "local":
+                    local_branch = branch
+                    break
+            if local_branch is None:
+                raise RuntimeError("No local branch even though we just created it.")
 
         #check out local
         local_branch.checkout(force=True)
@@ -553,7 +556,8 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
 
     async def safe_merge_update_routine(self, feedback_ui:AbstractFeedbackUI, group_name:str):
         """
-        This routine does a 'safe' merge of local changes, and update of remote changes.
+        This routine does a 'safe' merge of local changes, and update of remote changes.  Finally it pushes changes
+        so that if we're going to fail or conflict, we know now.
         """
 
         # sanity check.  What if the local db is from a different server (location)?
@@ -626,6 +630,29 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
         os.makedirs(local_path, exist_ok=True)
         git.Repo.init(local_path)
 
+    async def clone_local_routine(self, feedback_ui:AbstractFeedbackUI, group_name: str, source_server_name: str):
+        server = self.get_server_routines().get_server()
+        server_routines = self.get_server_routines()
+        local_path = server_routines.local_path_for_type_registry(server.get_name(), group_name,
+                                                                             self.get_typename())
+        source_server_routines = GitLabServerRoutines(source_server_name)
+        source_local_path = source_server_routines.local_path_for_type_registry(source_server_name,group_name,self.get_typename())
+
+        os.makedirs(local_path, exist_ok=True)
+        git.Repo.clone_from(source_local_path,local_path)
+
+        #we push now, because we want to create it ASAP, or fail trying.
+        repo = git.Repo(local_path)
+        server_url = server_routines.remote_path_for_entity_registry(group_name=group_name,
+                                                                                type_name=self.get_typename())
+
+        remote = create_update_remote(repo, server.get_name(), server_url)
+        #this could fail if you don't have permission to write container changes.  And that's okay because securityis handled by gitlab after all.  And we don't want to diverge from the net either.
+        push_output = repo.git.push(server_routines.get_server_name(), 'master')
+        await feedback_ui.output(push_output)
+
+
+
     async def delete_local(self, group_name: str, fail_on_dirty=False) -> bool:
         """Returns true of deleted or not there.  False if deletion failed."""
         server = self.get_server_routines().get_server()
@@ -647,6 +674,7 @@ class GitLabManagedTypeRoutines(typing.Generic[T]):
         else:
             DeleteLocalRepo(local_path)
             return True
+
 
 
 
